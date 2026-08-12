@@ -26,7 +26,7 @@ const Dashboard = () => {
 
 
       {/* KPI Cards */}
-      <KpiCards />
+      <KpiCards/>
 
 
       {/* Quick Overview */}

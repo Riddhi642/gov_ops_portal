@@ -1,10 +1,14 @@
 import { useState } from "react";
+import {
+  Search,
+  Pencil,
+  Trash2,
+  FolderKanban,
+  X,
+} from "lucide-react";
 
-// प्रत्येक Project चा Data Type
 type ProjectData = {
-  // NEW: प्रत्येक Project साठी unique ID
   id: number;
-
   projectName: string;
   department: string;
   budget: string;
@@ -12,415 +16,563 @@ type ProjectData = {
 };
 
 const Projects = () => {
+  // =========================
+  // FORM STATES
+  // =========================
 
-  // Form States
   const [projectName, setProjectName] = useState("");
   const [department, setDepartment] = useState("");
   const [budget, setBudget] = useState("");
   const [status, setStatus] = useState("");
 
-  // Search State
+  // =========================
+  // SEARCH
+  // =========================
+
   const [search, setSearch] = useState("");
 
-  // Projects List
+  // =========================
+  // PROJECTS
+  // =========================
+
   const [projects, setProjects] = useState<ProjectData[]>([]);
 
-  // NEW: कोणता Project Edit करत आहोत
+  // =========================
+  // EDIT
+  // =========================
+
   const [editId, setEditId] = useState<number | null>(null);
 
+  // =========================
+  // RESET FORM
+  // =========================
 
-  // Form Submit
+  const resetForm = () => {
+    setProjectName("");
+    setDepartment("");
+    setBudget("");
+    setStatus("");
+    setEditId(null);
+  };
+
+  // =========================
+  // SUBMIT FORM
+  // =========================
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
-    if (!projectName || !department || !budget || !status) {
+    if (
+      !projectName.trim() ||
+      !department ||
+      !budget.trim() ||
+      !status
+    ) {
       alert("Please fill all fields");
       return;
     }
 
-    // NEW: Add किंवा Update हे check करण्यासाठी
     const isEditing = editId !== null;
 
-
-    // New / Updated Project Object
     const newProject: ProjectData = {
-      // NEW: Edit असेल तर जुना ID,
-      // Add असेल तर नवीन ID
       id: editId ?? Date.now(),
-
-      projectName,
+      projectName: projectName.trim(),
       department,
       budget,
       status,
     };
 
-
-    // NEW: Edit Mode
     if (isEditing) {
-
-      // ज्याचा ID match होतो तो Project update करतो
-      const updatedProjects = projects.map((project) =>
-        project.id === editId
-          ? newProject
-          : project
+      setProjects((prev) =>
+        prev.map((project) =>
+          project.id === editId ? newProject : project
+        )
       );
 
-      setProjects(updatedProjects);
-
-      // Edit Mode बंद करतो
-      setEditId(null);
-
+      alert("Project Updated Successfully!");
     } else {
+      setProjects((prev) => [...prev, newProject]);
 
-      // NEW: Normal Add Project
-      setProjects([...projects, newProject]);
+      alert("Project Added Successfully!");
     }
 
-
-    // Form Reset
-    setProjectName("");
-    setDepartment("");
-    setBudget("");
-    setStatus("");
-
-
-    // NEW: Add आणि Update साठी वेगवेगळा message
-    alert(
-      isEditing
-        ? "Project Updated Successfully!"
-        : "Project Added Successfully!"
-    );
+    resetForm();
   };
 
+  // =========================
+  // SEARCH PROJECTS
+  // =========================
 
-  // Search Projects
-  // NEW: Project Name किंवा Department वर search
-  const filteredProjects = projects.filter(
-    (project) =>
+  const filteredProjects = projects.filter((project) => {
+    const searchText = search.toLowerCase();
+
+    return (
       project.projectName
         .toLowerCase()
-        .includes(search.toLowerCase()) ||
-
+        .includes(searchText) ||
       project.department
         .toLowerCase()
-        .includes(search.toLowerCase())
-  );
+        .includes(searchText) ||
+      project.status
+        .toLowerCase()
+        .includes(searchText)
+    );
+  });
 
+  // =========================
+  // EDIT PROJECT
+  // =========================
 
-  // NEW: Edit Project Function
   const editProject = (id: number) => {
-
-    // ID वरून योग्य Project शोधतो
     const project = projects.find(
       (item) => item.id === id
     );
 
-    // Project सापडला नाही तर काही करू नका
     if (!project) return;
 
-
-    // Project ची माहिती Form मध्ये भरतो
     setProjectName(project.projectName);
     setDepartment(project.department);
     setBudget(project.budget);
     setStatus(project.status);
-
-    // Edit Mode सुरू करतो
     setEditId(id);
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
+  // =========================
+  // DELETE PROJECT
+  // =========================
 
-  // UPDATED: Delete Project
-  // आधी index वापरत होतो, आता unique ID वापरतो
   const deleteProject = (id: number) => {
-
-    const updatedProjects = projects.filter(
-      (project) => project.id !== id
+    const project = projects.find(
+      (item) => item.id === id
     );
 
-    setProjects(updatedProjects);
+    if (!project) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${project.projectName}"?`
+    );
+
+    if (!confirmed) return;
+
+    setProjects((prev) =>
+      prev.filter((project) => project.id !== id)
+    );
+
+    if (editId === id) {
+      resetForm();
+    }
   };
 
-
   return (
+    <div className="space-y-6">
 
-    <div className="p-6">
+      {/* =========================
+          PAGE HEADER
+      ========================= */}
 
-      {/* Form Card */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800">
+            Project Management
+          </h1>
 
-        <h1 className="text-3xl font-bold mb-6">
-          Project Management
-        </h1>
+          <p className="text-gray-500 mt-1">
+            Manage government projects and their details.
+          </p>
+        </div>
 
+        <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg w-fit">
+          <FolderKanban size={20} />
 
-        {/* Project Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4"
-        >
+          <span className="font-semibold">
+            {projects.length} Projects
+          </span>
+        </div>
+      </div>
 
-          {/* Project Name */}
-          <input
-            type="text"
-            placeholder="Project Name"
-            value={projectName}
-            onChange={(e) =>
-              setProjectName(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          />
+      {/* =========================
+          ADD / EDIT FORM
+      ========================= */}
 
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
 
-          {/* Department */}
-          <select
-            value={department}
-            onChange={(e) =>
-              setDepartment(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          >
+        <div className="flex items-center justify-between mb-5">
 
-            <option value="">
-              Select Department
-            </option>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-800">
+              {editId !== null
+                ? "Edit Project"
+                : "Add New Project"}
+            </h2>
 
-            <option value="Revenue">
-              Revenue
-            </option>
+            <p className="text-sm text-gray-500 mt-1">
+              {editId !== null
+                ? "Update project information."
+                : "Register a new government project."}
+            </p>
+          </div>
 
-            <option value="Health">
-              Health
-            </option>
+          {editId !== null && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex items-center gap-2 border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50"
+            >
+              <X size={17} />
+              Cancel
+            </button>
+          )}
+        </div>
 
-            <option value="Education">
-              Education
-            </option>
+        <form onSubmit={handleSubmit}>
 
-            <option value="Transport">
-              Transport
-            </option>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            <option value="Police">
-              Police
-            </option>
+            {/* Project Name */}
 
-            <option value="Municipal">
-              Municipal
-            </option>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Project Name
+              </label>
 
-          </select>
+              <input
+                type="text"
+                placeholder="Enter project name"
+                value={projectName}
+                onChange={(e) =>
+                  setProjectName(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
+            {/* Department */}
 
-          {/* Budget */}
-          <input
-            type="number"
-            placeholder="Budget"
-            value={budget}
-            onChange={(e) =>
-              setBudget(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Department
+              </label>
 
+              <select
+                value={department}
+                onChange={(e) =>
+                  setDepartment(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">
+                  Select Department
+                </option>
 
-          {/* Status */}
-          <select
-            value={status}
-            onChange={(e) =>
-              setStatus(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          >
+                <option value="Revenue">
+                  Revenue
+                </option>
 
-            <option value="">
-              Select Status
-            </option>
+                <option value="Health">
+                  Health
+                </option>
 
-            <option value="Active">
-              Active
-            </option>
+                <option value="Education">
+                  Education
+                </option>
 
-            <option value="Pending">
-              Pending
-            </option>
+                <option value="Transport">
+                  Transport
+                </option>
 
-            <option value="Completed">
-              Completed
-            </option>
+                <option value="Police">
+                  Police
+                </option>
 
-          </select>
+                <option value="Municipal">
+                  Municipal
+                </option>
 
+                <option value="Water Supply">
+                  Water Supply
+                </option>
+              </select>
+            </div>
 
-          {/* 
-            UPDATED:
-            Edit करताना "Update Project"
-            आणि नवीन Project करताना
-            "Save Project" दिसेल.
-          */}
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
-          >
-            {editId !== null
-              ? "Update Project"
-              : "Save Project"}
-          </button>
+            {/* Budget */}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Budget
+              </label>
+
+              <input
+                type="number"
+                placeholder="Enter project budget"
+                value={budget}
+                onChange={(e) =>
+                  setBudget(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* Status */}
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Status
+              </label>
+
+              <select
+                value={status}
+                onChange={(e) =>
+                  setStatus(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">
+                  Select Status
+                </option>
+
+                <option value="Active">
+                  Active
+                </option>
+
+                <option value="Pending">
+                  Pending
+                </option>
+
+                <option value="Completed">
+                  Completed
+                </option>
+              </select>
+            </div>
+
+          </div>
+
+          {/* Buttons */}
+
+          <div className="flex gap-3 mt-5">
+
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+            >
+              {editId !== null
+                ? "Update Project"
+                : "Save Project"}
+            </button>
+
+            {editId !== null && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="border border-gray-300 text-gray-600 px-6 py-3 rounded-lg hover:bg-gray-50"
+              >
+                Clear
+              </button>
+            )}
+
+          </div>
 
         </form>
-
       </div>
-            {/* Projects Table */}
-      <div className="bg-white rounded-xl shadow-lg p-6 mt-8">
 
-        <h2 className="text-2xl font-bold mb-4">
-          Projects List
-        </h2>
+      {/* =========================
+          PROJECTS LIST
+      ========================= */}
 
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
 
-        {/* Search Box */}
-        {/* UPDATED: Project Name किंवा Department search करता येईल */}
-        <input
-          type="text"
-          placeholder="Search Project..."
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
-          className="w-full border rounded-lg p-3 mb-5"
-        />
+        {/* Header */}
 
-        <div className="overflow-x-auto">
-        {/* Projects Table */}
-        <table className="w-full border-collapse">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
 
-          <thead>
+          <div>
+            <h2 className="text-xl font-semibold text-slate-800">
+              Projects List
+            </h2>
 
-            <tr className="bg-slate-100">
+            <p className="text-sm text-gray-500 mt-1">
+              Search and manage registered projects.
+            </p>
+          </div>
 
-              <th className="border p-3">
-                Project Name
-              </th>
+          {/* Search */}
 
-              <th className="border p-3">
-                Department
-              </th>
+          <div className="relative w-full sm:w-80">
 
-              <th className="border p-3">
-                Budget
-              </th>
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
 
-              <th className="border p-3">
-                Status
-              </th>
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+            />
 
-              <th className="border p-3">
-                Action
-              </th>
+          </div>
 
-            </tr>
+        </div>
 
-          </thead>
+        {/* =========================
+            EMPTY STATE
+        ========================= */}
 
+        {filteredProjects.length === 0 ? (
 
-          <tbody>
+          <div className="py-10 text-center">
 
-            {/* जर Project नसेल */}
-            {filteredProjects.length === 0 ? (
+            <FolderKanban
+              size={42}
+              className="mx-auto text-gray-300 mb-3"
+            />
 
-              <tr>
+            <h3 className="font-semibold text-slate-700">
+              No Projects Found
+            </h3>
 
-                <td
-                  colSpan={5}
-                  className="text-center p-5 text-gray-500"
-                >
-                  No Projects Added
-                </td>
+            <p className="text-sm text-gray-500 mt-1">
+              {search
+                ? "No projects match your search."
+                : "Add a new project to see it here."}
+            </p>
 
-              </tr>
+          </div>
 
-            ) : (
+        ) : (
 
-              // प्रत्येक Project Table मध्ये दाखवतो
-              filteredProjects.map((project) => (
+          /* =========================
+             PROJECT TABLE
+          ========================= */
 
-                <tr key={project.id}>
+          <div className="overflow-x-auto">
 
-                  {/* Project Name */}
-                  <td className="border p-3">
-                    {project.projectName}
-                  </td>
+            <table className="w-full">
 
+              <thead>
 
-                  {/* Department */}
-                  <td className="border p-3">
-                    {project.department}
-                  </td>
+                <tr className="bg-slate-50">
 
+                  <th className="text-left p-3 border-b text-sm font-semibold text-slate-700">
+                    Project Name
+                  </th>
 
-                  {/* Budget */}
-                  <td className="border p-3">
-                    ₹ {project.budget}
-                  </td>
+                  <th className="text-left p-3 border-b text-sm font-semibold text-slate-700">
+                    Department
+                  </th>
 
+                  <th className="text-left p-3 border-b text-sm font-semibold text-slate-700">
+                    Budget
+                  </th>
 
-                  {/* Status */}
-                  <td className="border p-3">
-                    {project.status}
-                  </td>
+                  <th className="text-left p-3 border-b text-sm font-semibold text-slate-700">
+                    Status
+                  </th>
 
-
-                  {/* Actions */}
-                  <td className="border p-3">
-
-                    {/* 
-                      NEW:
-                      Edit button
-                      Project चा unique ID पाठवतो
-                    */}
-                    <button
-                      onClick={() =>
-                        editProject(project.id)
-                      }
-                      className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 mr-2"
-                    >
-                      Edit
-                    </button>
-
-
-                    {/* 
-                      UPDATED:
-                      Delete button आता index ऐवजी
-                      unique ID वापरतो
-                    */}
-                    <button
-                      onClick={() =>
-                        deleteProject(project.id)
-                      }
-                      className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                    >
-                      Delete
-                    </button>
-
-                  </td>
+                  <th className="text-center p-3 border-b text-sm font-semibold text-slate-700">
+                    Action
+                  </th>
 
                 </tr>
 
-              ))
+              </thead>
 
-            )}
+              <tbody>
 
-          </tbody>
+                {filteredProjects.map((project) => (
 
-        </table>
-        </div>
+                  <tr
+                    key={project.id}
+                    className="hover:bg-slate-50 transition"
+                  >
+
+                    <td className="p-3 border-b font-medium text-slate-800">
+                      {project.projectName}
+                    </td>
+
+                    <td className="p-3 border-b">
+                      <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-sm">
+                        {project.department}
+                      </span>
+                    </td>
+
+                    <td className="p-3 border-b">
+                      ₹ {project.budget}
+                    </td>
+
+                    <td className="p-3 border-b">
+
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-sm ${
+                          project.status === "Active"
+                            ? "bg-green-50 text-green-700"
+                            : project.status === "Completed"
+                            ? "bg-blue-50 text-blue-700"
+                            : "bg-yellow-50 text-yellow-700"
+                        }`}
+                      >
+                        {project.status}
+                      </span>
+
+                    </td>
+
+                    <td className="p-3 border-b">
+
+                      <div className="flex items-center justify-center gap-2">
+
+                        {/* Edit */}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            editProject(project.id)
+                          }
+                          title="Edit Project"
+                          className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
+                        >
+                          <Pencil size={17} />
+                        </button>
+
+                        {/* Delete */}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            deleteProject(project.id)
+                          }
+                          title="Delete Project"
+                          className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                        >
+                          <Trash2 size={17} />
+                        </button>
+
+                      </div>
+
+                    </td>
+
+                  </tr>
+
+                ))}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        )}
 
       </div>
 
-
     </div>
-
   );
 };
 

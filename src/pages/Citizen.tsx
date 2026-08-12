@@ -1,13 +1,18 @@
 import { useState } from "react";
+import {
+  Search,
+  Pencil,
+  Trash2,
+  Users,
+  Building2,
+  UserPlus,
+  X,
+  Eye,
+} from "lucide-react";
 
-// प्रत्येक Citizen चा Data Type
 type CitizenData = {
-  // प्रत्येक Citizen साठी unique ID
   id: number;
-
-  // Citizen ID automatically generate होईल
   citizenId: string;
-
   name: string;
   email: string;
   phone: string;
@@ -15,7 +20,6 @@ type CitizenData = {
 };
 
 const Citizen = () => {
-
   // =========================
   // FORM STATES
   // =========================
@@ -26,482 +30,941 @@ const Citizen = () => {
   const [department, setDepartment] = useState("");
 
   // =========================
-  // SEARCH STATE
+  // SEARCH
   // =========================
 
   const [search, setSearch] = useState("");
 
   // =========================
-  // CITIZENS LIST
+  // CITIZENS
   // =========================
 
   const [citizens, setCitizens] = useState<CitizenData[]>([]);
 
   // =========================
-  // EDIT STATE
+  // EDIT
   // =========================
 
   const [editId, setEditId] = useState<number | null>(null);
-    // =========================
-  // FORM SUBMIT
+
+  // =========================
+  // VIEW MODAL
   // =========================
 
-  const handleSubmit = (e: React.FormEvent) => {
-    // Page refresh होऊ नये म्हणून
-    e.preventDefault();
+  const [selectedCitizen, setSelectedCitizen] =
+    useState<CitizenData | null>(null);
 
-    // सर्व fields भरले आहेत का ते check करतो
-    if (!name || !email || !phone || !department) {
-      alert("Please fill all fields");
-      return;
-    }
+  // =========================
+  // RESET FORM
+  // =========================
 
-    // Citizen ID generate करतो
-    // Edit असेल तर जुनी ID ठेवतो
-    let generatedCitizenId = "";
-
-    if (editId !== null) {
-      const existingCitizen = citizens.find(
-        (citizen) => citizen.id === editId
-      );
-
-      generatedCitizenId =
-        existingCitizen?.citizenId || "";
-    } else {
-      // New Citizen साठी automatic ID
-      generatedCitizenId =
-        `CIT-${String(citizens.length + 1).padStart(3, "0")}`;
-    }
-
-    // नवीन / Updated Citizen Object
-    const newCitizen: CitizenData = {
-      id: editId ?? Date.now(),
-
-      citizenId: generatedCitizenId,
-
-      name,
-      email,
-      phone,
-      department,
-    };
-
-    // =========================
-    // EDIT CITIZEN
-    // =========================
-
-    if (editId !== null) {
-
-      const updatedCitizens = citizens.map(
-        (citizen) =>
-          citizen.id === editId
-            ? newCitizen
-            : citizen
-      );
-
-      // Updated list State मध्ये save करतो
-      setCitizens(updatedCitizens);
-
-      // Edit Mode बंद करतो
-      setEditId(null);
-
-      alert("Citizen Updated Successfully!");
-
-    } else {
-
-      // =========================
-      // NEW CITIZEN ADD
-      // =========================
-
-      const updatedCitizens = [
-        ...citizens,
-        newCitizen,
-      ];
-
-      // नवीन Citizen List मध्ये add करतो
-      setCitizens(updatedCitizens);
-
-      alert(
-        `Citizen Added Successfully! ID: ${generatedCitizenId}`
-      );
-    }
-
-    // =========================
-    // FORM RESET
-    // =========================
-
+  const resetForm = () => {
     setName("");
     setEmail("");
     setPhone("");
     setDepartment("");
+    setEditId(null);
   };
+
+  // =========================
+  // FORM SUBMIT
+  // =========================
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !department
+    ) {
+      alert("Please fill all fields");
+      return;
+    }
+
+    const isEditing = editId !== null;
+
+    let citizenId = "";
+
+    // Edit असल्यास जुना ID ठेवतो
+    if (isEditing) {
+      const existingCitizen = citizens.find(
+        (citizen) => citizen.id === editId
+      );
+
+      citizenId = existingCitizen?.citizenId || "";
+    } else {
+      // New Citizen ID
+      citizenId = `CIT-${String(
+        citizens.length + 1
+      ).padStart(3, "0")}`;
+    }
+
+    const newCitizen: CitizenData = {
+      id: editId ?? Date.now(),
+      citizenId,
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      department,
+    };
+
     // =========================
+    // UPDATE CITIZEN
+    // =========================
+
+    if (isEditing) {
+      setCitizens((prev) =>
+        prev.map((citizen) =>
+          citizen.id === editId
+            ? newCitizen
+            : citizen
+        )
+      );
+
+      alert("Citizen Updated Successfully!");
+    }
+
+    // =========================
+    // ADD CITIZEN
+    // =========================
+
+    else {
+      setCitizens((prev) => [
+        ...prev,
+        newCitizen,
+      ]);
+
+      alert(
+        `Citizen Added Successfully! ID: ${citizenId}`
+      );
+    }
+
+    resetForm();
+  };
+
+  // =========================
   // SEARCH CITIZENS
   // =========================
 
   const filteredCitizens = citizens.filter(
-    (citizen) =>
-      citizen.name
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      citizen.email
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      citizen.phone
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      citizen.department
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      citizen.citizenId
-        .toLowerCase()
-        .includes(search.toLowerCase())
+    (citizen) => {
+      const searchText =
+        search.toLowerCase();
+
+      return (
+        citizen.citizenId
+          .toLowerCase()
+          .includes(searchText) ||
+        citizen.name
+          .toLowerCase()
+          .includes(searchText) ||
+        citizen.email
+          .toLowerCase()
+          .includes(searchText) ||
+        citizen.phone
+          .toLowerCase()
+          .includes(searchText) ||
+        citizen.department
+          .toLowerCase()
+          .includes(searchText)
+      );
+    }
   );
 
+  // =========================
+  // VIEW CITIZEN
+  // =========================
+
+  const viewCitizen = (id: number) => {
+    const citizen = citizens.find(
+      (item) => item.id === id
+    );
+
+    if (!citizen) return;
+
+    setSelectedCitizen(citizen);
+  };
 
   // =========================
   // EDIT CITIZEN
   // =========================
 
   const editCitizen = (id: number) => {
-
-    // Selected Citizen शोधतो
     const citizen = citizens.find(
       (item) => item.id === id
     );
 
-    // Citizen सापडला नाही तर function थांबवतो
     if (!citizen) return;
 
-    // Existing data form मध्ये भरतो
     setName(citizen.name);
     setEmail(citizen.email);
     setPhone(citizen.phone);
     setDepartment(citizen.department);
 
-    // Edit Mode सुरू करतो
     setEditId(id);
-  };
 
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   // =========================
   // DELETE CITIZEN
   // =========================
 
   const deleteCitizen = (id: number) => {
-
-    // Selected Citizen remove करतो
-    const updatedCitizens = citizens.filter(
-      (citizen) => citizen.id !== id
+    const citizen = citizens.find(
+      (item) => item.id === id
     );
 
-    // Updated list State मध्ये save करतो
-    setCitizens(updatedCitizens);
+    if (!citizen) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${citizen.name}?`
+    );
+
+    if (!confirmed) return;
+
+    setCitizens((prev) =>
+      prev.filter(
+        (citizen) => citizen.id !== id
+      )
+    );
+
+    // जर deleted citizen edit होत असेल
+    if (editId === id) {
+      resetForm();
+    }
+
+    // जर deleted citizen modal मध्ये असेल
+    if (selectedCitizen?.id === id) {
+      setSelectedCitizen(null);
+    }
   };
-    return (
-    <div className="p-6">
 
-      {/* =========================================
-          CITIZEN FORM CARD
-      ========================================= */}
+  // =========================
+  // KPI CALCULATIONS
+  // =========================
 
-      <div className="bg-white rounded-xl shadow-lg p-6">
+  const totalCitizens = citizens.length;
 
-        {/* Page Title */}
-        <h1 className="text-3xl font-bold mb-6">
-          Citizen Management
-        </h1>
+  const totalDepartments = new Set(
+    citizens.map(
+      (citizen) => citizen.department
+    )
+  ).size;
 
+  return (
+    <div className="space-y-6 w-full">
 
-        {/* Citizen Form */}
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-4"
-        >
+      {/* =====================================
+          PAGE HEADER
+      ===================================== */}
 
-          {/* =========================
-              NAME
-          ========================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
-          <input
-            type="text"
-            placeholder="Full Name"
-            value={name}
-            onChange={(e) =>
-              setName(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          />
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-800">
+            Citizen Management
+          </h1>
 
+          <p className="text-sm sm:text-base text-gray-500 mt-1">
+            Manage registered citizens and their information.
+          </p>
+        </div>
 
-          {/* =========================
-              EMAIL
-          ========================= */}
+        <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-lg w-fit">
+          <Users size={19} />
 
-          <input
-            type="email"
-            placeholder="Email Address"
-            value={email}
-            onChange={(e) =>
-              setEmail(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          />
-
-
-          {/* =========================
-              PHONE
-          ========================= */}
-
-          <input
-            type="text"
-            placeholder="Phone Number"
-            value={phone}
-            onChange={(e) =>
-              setPhone(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          />
-
-
-          {/* =========================
-              DEPARTMENT
-          ========================= */}
-
-          <select
-            value={department}
-            onChange={(e) =>
-              setDepartment(e.target.value)
-            }
-            className="w-full border rounded-lg p-3"
-          >
-
-            <option value="">
-              Select Department
-            </option>
-
-            <option value="Revenue">
-              Revenue
-            </option>
-
-            <option value="Health">
-              Health
-            </option>
-
-            <option value="Education">
-              Education
-            </option>
-
-            <option value="Transport">
-              Transport
-            </option>
-
-            <option value="Police">
-              Police
-            </option>
-
-            <option value="Municipal">
-              Municipal
-            </option>
-
-            <option value="Water Supply">
-              Water Supply
-            </option>
-
-            <option value="Electricity">
-              Electricity
-            </option>
-
-          </select>
-
-
-          {/* =========================
-              SAVE / UPDATE BUTTON
-          ========================= */}
-
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700"
-          >
-            {editId !== null
-              ? "Update Citizen"
-              : "Save Citizen"}
-          </button>
-
-        </form>
+          <span className="font-semibold text-sm">
+            {totalCitizens} Citizens
+          </span>
+        </div>
 
       </div>
-            {/* =========================================
-          CITIZENS LIST CARD
-      ========================================= */}
-
-      <div className="bg-white rounded-xl shadow-lg p-6 mt-8">
-
-        {/* Table Title */}
-        <h2 className="text-2xl font-bold mb-4">
-          Citizens List
-        </h2>
 
 
-        {/* =========================
-            SEARCH BOX
-        ========================= */}
+      {/* =====================================
+          KPI CARDS
+      ===================================== */}
 
-        <input
-          type="text"
-          placeholder="Search Citizen..."
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
-          className="w-full border rounded-lg p-3 mb-5"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
+        {/* Total Citizens */}
 
-        {/* =========================
-            RESPONSIVE TABLE
-        ========================= */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
-        <div className="overflow-x-auto">
+          <div className="flex items-center justify-between">
 
-          <table className="w-full border-collapse">
+            <div>
+              <p className="text-sm text-gray-500">
+                Total Citizens
+              </p>
 
-            {/* TABLE HEADER */}
+              <h2 className="text-2xl font-bold text-slate-800 mt-1">
+                {totalCitizens}
+              </h2>
+            </div>
 
-            <thead>
+            <div className="bg-blue-100 text-blue-600 p-3 rounded-lg">
+              <Users size={23} />
+            </div>
 
-              <tr className="bg-slate-100">
+          </div>
 
-                <th className="border p-3">
-                  Citizen ID
-                </th>
-
-                <th className="border p-3">
-                  Name
-                </th>
-
-                <th className="border p-3">
-                  Email
-                </th>
-
-                <th className="border p-3">
-                  Phone
-                </th>
-
-                <th className="border p-3">
-                  Department
-                </th>
-
-                <th className="border p-3">
-                  Action
-                </th>
-
-              </tr>
-
-            </thead>
+        </div>
 
 
-            {/* TABLE BODY */}
+        {/* Departments */}
 
-            <tbody>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
-              {/* Citizen Data नसेल तर */}
-              {filteredCitizens.length === 0 ? (
+          <div className="flex items-center justify-between">
 
-                <tr>
+            <div>
+              <p className="text-sm text-gray-500">
+                Departments
+              </p>
 
-                  <td
-                    colSpan={6}
-                    className="text-center p-5 text-gray-500"
-                  >
-                    No Citizens Added
-                  </td>
+              <h2 className="text-2xl font-bold text-slate-800 mt-1">
+                {totalDepartments}
+              </h2>
+            </div>
 
-                </tr>
+            <div className="bg-purple-100 text-purple-600 p-3 rounded-lg">
+              <Building2 size={23} />
+            </div>
 
-              ) : (
+          </div>
 
-                filteredCitizens.map((citizen) => (
-
-                  <tr key={citizen.id}>
-
-                    {/* Citizen ID */}
-
-                    <td className="border p-3 font-medium text-blue-600">
-                      {citizen.citizenId}
-                    </td>
+        </div>
 
 
-                    {/* Name */}
+        {/* Registration */}
 
-                    <td className="border p-3">
-                      {citizen.name}
-                    </td>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
+          <div className="flex items-center justify-between">
 
-                    {/* Email */}
+            <div>
+              <p className="text-sm text-gray-500">
+                Registered
+              </p>
 
-                    <td className="border p-3">
-                      {citizen.email}
-                    </td>
+              <h2 className="text-2xl font-bold text-slate-800 mt-1">
+                {citizens.length}
+              </h2>
+            </div>
 
+            <div className="bg-green-100 text-green-600 p-3 rounded-lg">
+              <UserPlus size={23} />
+            </div>
 
-                    {/* Phone */}
-
-                    <td className="border p-3">
-                      {citizen.phone}
-                    </td>
-
-
-                    {/* Department */}
-
-                    <td className="border p-3">
-                      {citizen.department}
-                    </td>
-
-
-                    {/* Actions */}
-
-                    <td className="border p-3 whitespace-nowrap">
-
-                      {/* Edit Button */}
-
-                      <button
-                        onClick={() =>
-                          editCitizen(citizen.id)
-                        }
-                        className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 mr-2"
-                      >
-                        Edit
-                      </button>
-
-
-                      {/* Delete Button */}
-
-                      <button
-                        onClick={() =>
-                          deleteCitizen(citizen.id)
-                        }
-                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
-                      >
-                        Delete
-                      </button>
-
-                    </td>
-
-                  </tr>
-
-                ))
-
-              )}
-
-            </tbody>
-
-          </table>
+          </div>
 
         </div>
 
       </div>
+
+
+      {/* =====================================
+          ADD / EDIT CITIZEN
+      ===================================== */}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+
+          <div>
+
+            <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">
+              {editId !== null
+                ? "Edit Citizen"
+                : "Add New Citizen"}
+            </h2>
+
+            <p className="text-sm text-gray-500 mt-1">
+              {editId !== null
+                ? "Update citizen information."
+                : "Register a new citizen."}
+            </p>
+
           </div>
+
+
+          {/* Cancel Edit */}
+
+          {editId !== null && (
+
+            <button
+              type="button"
+              onClick={resetForm}
+              className="flex items-center justify-center gap-2 border border-gray-300 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-50 transition w-full sm:w-auto"
+            >
+              <X size={17} />
+              Cancel Edit
+            </button>
+
+          )}
+
+        </div>
+
+
+        {/* =====================================
+            FORM
+        ===================================== */}
+
+        <form onSubmit={handleSubmit}>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            {/* Name */}
+
+            <div>
+
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Full Name
+              </label>
+
+              <input
+                type="text"
+                placeholder="Enter citizen name"
+                value={name}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+
+            </div>
+
+
+            {/* Email */}
+
+            <div>
+
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Email Address
+              </label>
+
+              <input
+                type="email"
+                placeholder="citizen@example.com"
+                value={email}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+
+            </div>
+
+
+            {/* Phone */}
+
+            <div>
+
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Phone Number
+              </label>
+
+              <input
+                type="tel"
+                placeholder="Enter phone number"
+                value={phone}
+                onChange={(e) =>
+                  setPhone(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+
+            </div>
+
+
+            {/* Department */}
+
+            <div>
+
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Department
+              </label>
+
+              <select
+                value={department}
+                onChange={(e) =>
+                  setDepartment(e.target.value)
+                }
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+
+                <option value="">
+                  Select Department
+                </option>
+
+                <option value="Revenue">
+                  Revenue
+                </option>
+
+                <option value="Health">
+                  Health
+                </option>
+
+                <option value="Education">
+                  Education
+                </option>
+
+                <option value="Transport">
+                  Transport
+                </option>
+
+                <option value="Police">
+                  Police
+                </option>
+
+                <option value="Municipal">
+                  Municipal
+                </option>
+
+                <option value="Water Supply">
+                  Water Supply
+                </option>
+
+                <option value="Electricity">
+                  Electricity
+                </option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+
+          {/* Buttons */}
+
+          <div className="flex flex-col sm:flex-row gap-3 mt-5">
+
+            <button
+              type="submit"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
+            >
+
+              {editId !== null ? (
+                <>
+                  <Pencil size={18} />
+                  Update Citizen
+                </>
+              ) : (
+                <>
+                  <UserPlus size={18} />
+                  Save Citizen
+                </>
+              )}
+
+            </button>
+
+
+            {editId !== null && (
+
+              <button
+                type="button"
+                onClick={resetForm}
+                className="w-full sm:w-auto border border-gray-300 text-gray-600 px-6 py-3 rounded-lg hover:bg-gray-50 transition"
+              >
+                Clear
+              </button>
+
+            )}
+
+          </div>
+
+        </form>
+
+      </div>
+
+
+      {/* =====================================
+          CITIZENS LIST
+      ===================================== */}
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+
+        {/* Header */}
+
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+
+          <div>
+
+            <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">
+              Citizens List
+            </h2>
+
+            <p className="text-sm text-gray-500 mt-1">
+              Search and manage registered citizens.
+            </p>
+
+          </div>
+
+
+          {/* Search */}
+
+          <div className="relative w-full lg:w-80">
+
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              type="text"
+              placeholder="Search citizens..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+          </div>
+
+        </div>
+
+
+        {/* =====================================
+            EMPTY STATE
+        ===================================== */}
+
+        {filteredCitizens.length === 0 ? (
+
+          <div className="py-10 text-center">
+
+            <Users
+              size={42}
+              className="mx-auto text-gray-300 mb-3"
+            />
+
+            <h3 className="font-semibold text-slate-700">
+              No Citizens Found
+            </h3>
+
+            <p className="text-sm text-gray-500 mt-1">
+              {search
+                ? "No citizens match your search."
+                : "Add a new citizen to see them here."}
+            </p>
+
+          </div>
+
+        ) : (
+
+          /* =====================================
+             TABLE
+          ===================================== */
+
+          <div className="overflow-x-auto">
+
+            <table className="w-full min-w-[850px]">
+
+              <thead>
+
+                <tr className="bg-slate-50">
+
+                  <th className="text-left p-3 text-sm font-semibold text-slate-700 border-b">
+                    Citizen ID
+                  </th>
+
+                  <th className="text-left p-3 text-sm font-semibold text-slate-700 border-b">
+                    Name
+                  </th>
+
+                  <th className="text-left p-3 text-sm font-semibold text-slate-700 border-b">
+                    Email
+                  </th>
+
+                  <th className="text-left p-3 text-sm font-semibold text-slate-700 border-b">
+                    Phone
+                  </th>
+
+                  <th className="text-left p-3 text-sm font-semibold text-slate-700 border-b">
+                    Department
+                  </th>
+
+                  <th className="text-center p-3 text-sm font-semibold text-slate-700 border-b">
+                    Action
+                  </th>
+
+                </tr>
+
+              </thead>
+
+
+              <tbody>
+
+                {filteredCitizens.map(
+                  (citizen) => (
+
+                    <tr
+                      key={citizen.id}
+                      className="hover:bg-slate-50 transition"
+                    >
+
+                      {/* Citizen ID */}
+
+                      <td className="p-3 border-b">
+
+                        <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-sm font-medium">
+                          {citizen.citizenId}
+                        </span>
+
+                      </td>
+
+
+                      {/* Name */}
+
+                      <td className="p-3 border-b font-medium text-slate-800">
+                        {citizen.name}
+                      </td>
+
+
+                      {/* Email */}
+
+                      <td className="p-3 border-b text-sm text-gray-600">
+                        {citizen.email}
+                      </td>
+
+
+                      {/* Phone */}
+
+                      <td className="p-3 border-b text-sm text-gray-600">
+                        {citizen.phone}
+                      </td>
+
+
+                      {/* Department */}
+
+                      <td className="p-3 border-b">
+
+                        <span className="inline-block bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-sm">
+                          {citizen.department}
+                        </span>
+
+                      </td>
+
+
+                      {/* Actions */}
+
+                      <td className="p-3 border-b">
+
+                        <div className="flex items-center justify-center gap-2">
+
+                          {/* VIEW */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              viewCitizen(citizen.id)
+                            }
+                            title="View Citizen"
+                            className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                          >
+                            <Eye size={17} />
+                          </button>
+
+
+                          {/* EDIT */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              editCitizen(citizen.id)
+                            }
+                            title="Edit Citizen"
+                            className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition"
+                          >
+                            <Pencil size={17} />
+                          </button>
+
+
+                          {/* DELETE */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              deleteCitizen(citizen.id)
+                            }
+                            title="Delete Citizen"
+                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+
+                  )
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        )}
+
+      </div>
+
+
+      {/* =====================================
+          VIEW CITIZEN MODAL
+      ===================================== */}
+
+      {selectedCitizen && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+
+            {/* Modal Header */}
+
+            <div className="flex items-center justify-between p-5 border-b">
+
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-800">
+                  Citizen Details
+                </h2>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Complete citizen information
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedCitizen(null)
+                }
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+
+            {/* Modal Body */}
+
+            <div className="p-5 space-y-4">
+
+              {/* Citizen ID */}
+
+              <div className="bg-blue-50 rounded-lg p-4">
+
+                <p className="text-xs text-gray-500">
+                  Citizen ID
+                </p>
+
+                <p className="text-lg font-bold text-blue-700 mt-1">
+                  {selectedCitizen.citizenId}
+                </p>
+
+              </div>
+
+
+              {/* Name */}
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Full Name
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1">
+                  {selectedCitizen.name}
+                </p>
+
+              </div>
+
+
+              {/* Email */}
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Email Address
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1 break-all">
+                  {selectedCitizen.email}
+                </p>
+
+              </div>
+
+
+              {/* Phone */}
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Phone Number
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1">
+                  {selectedCitizen.phone}
+                </p>
+
+              </div>
+
+
+              {/* Department */}
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Department
+                </p>
+
+                <span className="inline-block bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full text-sm font-medium mt-1">
+                  {selectedCitizen.department}
+                </span>
+
+              </div>
+
+            </div>
+
+
+            {/* Modal Footer */}
+
+            <div className="flex justify-end p-5 border-t">
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedCitizen(null)
+                }
+                className="bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-900 transition"
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+    </div>
   );
 };
 
