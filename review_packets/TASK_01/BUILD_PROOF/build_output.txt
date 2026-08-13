@@ -1,0 +1,18 @@
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run build
+
+> gov_operations_portal@0.0.0 build
+> tsc -b && vite build
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.2.0 building client environment for production...
+✓ 1817 modules transformed.
+computing gzip size...
+dist/index.html                   0.47 kB │ gzip:  0.30 kB
+dist/assets/index-CYE0l1Z7.css   23.75 kB │ gzip:  5.28 kB
+dist/assets/index-_ev-IzFE.js   297.45 kB │ gzip: 83.34 kB
+
+✓ built in 1.73s
+

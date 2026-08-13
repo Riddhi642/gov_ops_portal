@@ -1,0 +1,56 @@
+Government Operations Portal
+Build / Verification Logs
+
+1. Development Server
+Command:
+npm run dev
+
+Result:
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run dev
+
+> gov_operations_portal@0.0.0 dev
+> vite
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+  VITE v8.2.0  ready in 909 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+
+
+2. Lint
+Command:
+npm run lint
+
+Result:C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run lint
+
+> gov_operations_portal@0.0.0 lint
+> eslint .
+
+
+3. Production Build
+Command:
+npm run build
+
+Result:
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run build
+
+> gov_operations_portal@0.0.0 build
+> tsc -b && vite build
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.2.0 building client environment for production...
+✓ 1817 modules transformed.
+computing gzip size...
+dist/index.html                   0.47 kB │ gzip:  0.30 kB
+dist/assets/index-BQrujzFM.css   23.75 kB │ gzip:  5.28 kB
+dist/assets/index-BCXqBR8o.js   296.51 kB │ gzip: 83.12 kB
+
+✓ built in 2.29s
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>

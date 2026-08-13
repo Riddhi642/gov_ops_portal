@@ -73,7 +73,10 @@ const Citizen = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
+    // =========================
+    // VALIDATION
+    // =========================
+
     if (
       !name.trim() ||
       !email.trim() ||
@@ -86,24 +89,40 @@ const Citizen = () => {
 
     const isEditing = editId !== null;
 
-    let citizenId = "";
+    // =========================
+    // FIND EXISTING CITIZEN
+    // =========================
 
-    // Edit असल्यास जुना ID ठेवतो
-    if (isEditing) {
-      const existingCitizen = citizens.find(
-        (citizen) => citizen.id === editId
-      );
+    const existingCitizen = isEditing
+      ? citizens.find((citizen) => citizen.id === editId)
+      : undefined;
 
-      citizenId = existingCitizen?.citizenId || "";
-    } else {
-      // New Citizen ID
-      citizenId = `CIT-${String(
-        citizens.length + 1
-      ).padStart(3, "0")}`;
-    }
+    // =========================
+    // GENERATE CITIZEN ID
+    // =========================
+
+    const citizenId = isEditing
+      ? existingCitizen?.citizenId ?? ""
+      : `CIT-${String(citizens.length + 1).padStart(3, "0")}`;
+
+    // =========================
+    // GENERATE NUMERIC ID
+    // =========================
+    // Editing असल्यास जुना ID ठेवतो.
+    // New citizen असल्यास existing IDs मधून next ID घेतो.
+
+    const newNumericId = isEditing
+      ? editId
+      : citizens.length > 0
+      ? Math.max(...citizens.map((citizen) => citizen.id)) + 1
+      : 1;
+
+    // =========================
+    // NEW CITIZEN OBJECT
+    // =========================
 
     const newCitizen: CitizenData = {
-      id: editId ?? Date.now(),
+      id: newNumericId as number,
       citizenId,
       name: name.trim(),
       email: email.trim(),
@@ -118,9 +137,7 @@ const Citizen = () => {
     if (isEditing) {
       setCitizens((prev) =>
         prev.map((citizen) =>
-          citizen.id === editId
-            ? newCitizen
-            : citizen
+          citizen.id === editId ? newCitizen : citizen
         )
       );
 
@@ -132,15 +149,14 @@ const Citizen = () => {
     // =========================
 
     else {
-      setCitizens((prev) => [
-        ...prev,
-        newCitizen,
-      ]);
+      setCitizens((prev) => [...prev, newCitizen]);
 
-      alert(
-        `Citizen Added Successfully! ID: ${citizenId}`
-      );
+      alert(`Citizen Added Successfully! ID: ${citizenId}`);
     }
+
+    // =========================
+    // RESET FORM
+    // =========================
 
     resetForm();
   };
@@ -149,39 +165,24 @@ const Citizen = () => {
   // SEARCH CITIZENS
   // =========================
 
-  const filteredCitizens = citizens.filter(
-    (citizen) => {
-      const searchText =
-        search.toLowerCase();
+  const filteredCitizens = citizens.filter((citizen) => {
+    const searchText = search.toLowerCase().trim();
 
-      return (
-        citizen.citizenId
-          .toLowerCase()
-          .includes(searchText) ||
-        citizen.name
-          .toLowerCase()
-          .includes(searchText) ||
-        citizen.email
-          .toLowerCase()
-          .includes(searchText) ||
-        citizen.phone
-          .toLowerCase()
-          .includes(searchText) ||
-        citizen.department
-          .toLowerCase()
-          .includes(searchText)
-      );
-    }
-  );
+    return (
+      citizen.citizenId.toLowerCase().includes(searchText) ||
+      citizen.name.toLowerCase().includes(searchText) ||
+      citizen.email.toLowerCase().includes(searchText) ||
+      citizen.phone.toLowerCase().includes(searchText) ||
+      citizen.department.toLowerCase().includes(searchText)
+    );
+  });
 
   // =========================
   // VIEW CITIZEN
   // =========================
 
   const viewCitizen = (id: number) => {
-    const citizen = citizens.find(
-      (item) => item.id === id
-    );
+    const citizen = citizens.find((item) => item.id === id);
 
     if (!citizen) return;
 
@@ -193,9 +194,7 @@ const Citizen = () => {
   // =========================
 
   const editCitizen = (id: number) => {
-    const citizen = citizens.find(
-      (item) => item.id === id
-    );
+    const citizen = citizens.find((item) => item.id === id);
 
     if (!citizen) return;
 
@@ -203,7 +202,6 @@ const Citizen = () => {
     setEmail(citizen.email);
     setPhone(citizen.phone);
     setDepartment(citizen.department);
-
     setEditId(id);
 
     window.scrollTo({
@@ -217,9 +215,7 @@ const Citizen = () => {
   // =========================
 
   const deleteCitizen = (id: number) => {
-    const citizen = citizens.find(
-      (item) => item.id === id
-    );
+    const citizen = citizens.find((item) => item.id === id);
 
     if (!citizen) return;
 
@@ -230,17 +226,15 @@ const Citizen = () => {
     if (!confirmed) return;
 
     setCitizens((prev) =>
-      prev.filter(
-        (citizen) => citizen.id !== id
-      )
+      prev.filter((item) => item.id !== id)
     );
 
-    // जर deleted citizen edit होत असेल
+    // Deleted citizen edit होत असेल
     if (editId === id) {
       resetForm();
     }
 
-    // जर deleted citizen modal मध्ये असेल
+    // Deleted citizen modal मध्ये असेल
     if (selectedCitizen?.id === id) {
       setSelectedCitizen(null);
     }
@@ -253,10 +247,12 @@ const Citizen = () => {
   const totalCitizens = citizens.length;
 
   const totalDepartments = new Set(
-    citizens.map(
-      (citizen) => citizen.department
-    )
+    citizens.map((citizen) => citizen.department)
   ).size;
+
+  // =========================
+  // UI
+  // =========================
 
   return (
     <div className="space-y-6 w-full">
@@ -286,7 +282,6 @@ const Citizen = () => {
         </div>
 
       </div>
-
 
       {/* =====================================
           KPI CARDS
@@ -318,7 +313,6 @@ const Citizen = () => {
 
         </div>
 
-
         {/* Departments */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -343,8 +337,7 @@ const Citizen = () => {
 
         </div>
 
-
-        {/* Registration */}
+        {/* Registered */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
@@ -370,7 +363,6 @@ const Citizen = () => {
 
       </div>
 
-
       {/* =====================================
           ADD / EDIT CITIZEN
       ===================================== */}
@@ -395,11 +387,9 @@ const Citizen = () => {
 
           </div>
 
-
           {/* Cancel Edit */}
 
           {editId !== null && (
-
             <button
               type="button"
               onClick={resetForm}
@@ -408,11 +398,9 @@ const Citizen = () => {
               <X size={17} />
               Cancel Edit
             </button>
-
           )}
 
         </div>
-
 
         {/* =====================================
             FORM
@@ -434,14 +422,11 @@ const Citizen = () => {
                 type="text"
                 placeholder="Enter citizen name"
                 value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
+                onChange={(e) => setName(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
 
             </div>
-
 
             {/* Email */}
 
@@ -455,14 +440,11 @@ const Citizen = () => {
                 type="email"
                 placeholder="citizen@example.com"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
 
             </div>
-
 
             {/* Phone */}
 
@@ -476,14 +458,11 @@ const Citizen = () => {
                 type="tel"
                 placeholder="Enter phone number"
                 value={phone}
-                onChange={(e) =>
-                  setPhone(e.target.value)
-                }
+                onChange={(e) => setPhone(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
 
             </div>
-
 
             {/* Department */}
 
@@ -495,9 +474,7 @@ const Citizen = () => {
 
               <select
                 value={department}
-                onChange={(e) =>
-                  setDepartment(e.target.value)
-                }
+                onChange={(e) => setDepartment(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
 
@@ -543,7 +520,6 @@ const Citizen = () => {
 
           </div>
 
-
           {/* Buttons */}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-5">
@@ -567,9 +543,7 @@ const Citizen = () => {
 
             </button>
 
-
             {editId !== null && (
-
               <button
                 type="button"
                 onClick={resetForm}
@@ -577,7 +551,6 @@ const Citizen = () => {
               >
                 Clear
               </button>
-
             )}
 
           </div>
@@ -585,7 +558,6 @@ const Citizen = () => {
         </form>
 
       </div>
-
 
       {/* =====================================
           CITIZENS LIST
@@ -609,7 +581,6 @@ const Citizen = () => {
 
           </div>
 
-
           {/* Search */}
 
           <div className="relative w-full lg:w-80">
@@ -623,16 +594,13 @@ const Citizen = () => {
               type="text"
               placeholder="Search citizens..."
               value={search}
-              onChange={(e) =>
-                setSearch(e.target.value)
-              }
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
 
           </div>
 
         </div>
-
 
         {/* =====================================
             EMPTY STATE
@@ -701,115 +669,102 @@ const Citizen = () => {
 
               </thead>
 
-
               <tbody>
 
-                {filteredCitizens.map(
-                  (citizen) => (
+                {filteredCitizens.map((citizen) => (
 
-                    <tr
-                      key={citizen.id}
-                      className="hover:bg-slate-50 transition"
-                    >
+                  <tr
+                    key={citizen.id}
+                    className="hover:bg-slate-50 transition"
+                  >
 
-                      {/* Citizen ID */}
+                    {/* Citizen ID */}
 
-                      <td className="p-3 border-b">
+                    <td className="p-3 border-b">
 
-                        <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-sm font-medium">
-                          {citizen.citizenId}
-                        </span>
+                      <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-sm font-medium">
+                        {citizen.citizenId}
+                      </span>
 
-                      </td>
+                    </td>
 
+                    {/* Name */}
 
-                      {/* Name */}
+                    <td className="p-3 border-b font-medium text-slate-800">
+                      {citizen.name}
+                    </td>
 
-                      <td className="p-3 border-b font-medium text-slate-800">
-                        {citizen.name}
-                      </td>
+                    {/* Email */}
 
+                    <td className="p-3 border-b text-sm text-gray-600">
+                      {citizen.email}
+                    </td>
 
-                      {/* Email */}
+                    {/* Phone */}
 
-                      <td className="p-3 border-b text-sm text-gray-600">
-                        {citizen.email}
-                      </td>
+                    <td className="p-3 border-b text-sm text-gray-600">
+                      {citizen.phone}
+                    </td>
 
+                    {/* Department */}
 
-                      {/* Phone */}
+                    <td className="p-3 border-b">
 
-                      <td className="p-3 border-b text-sm text-gray-600">
-                        {citizen.phone}
-                      </td>
+                      <span className="inline-block bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-sm">
+                        {citizen.department}
+                      </span>
 
+                    </td>
 
-                      {/* Department */}
+                    {/* Actions */}
 
-                      <td className="p-3 border-b">
+                    <td className="p-3 border-b">
 
-                        <span className="inline-block bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-sm">
-                          {citizen.department}
-                        </span>
+                      <div className="flex items-center justify-center gap-2">
 
-                      </td>
+                        {/* VIEW */}
 
+                        <button
+                          type="button"
+                          onClick={() => viewCitizen(citizen.id)}
+                          title="View Citizen"
+                          aria-label="View Citizen"
+                          className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                        >
+                          <Eye size={17} />
+                        </button>
 
-                      {/* Actions */}
+                        {/* EDIT */}
 
-                      <td className="p-3 border-b">
+                        <button
+                          type="button"
+                          onClick={() => editCitizen(citizen.id)}
+                          title="Edit Citizen"
+                          aria-label="Edit Citizen"
+                          className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition"
+                        >
+                          <Pencil size={17} />
+                        </button>
 
-                        <div className="flex items-center justify-center gap-2">
+                        {/* DELETE */}
 
-                          {/* VIEW */}
+                        <button
+                          type="button"
+                          onClick={() => deleteCitizen(citizen.id)}
+                          title="Delete Citizen"
+                          aria-label="Delete Citizen"
+                          className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                        >
+                          <Trash2 size={17} />
+                        </button>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              viewCitizen(citizen.id)
-                            }
-                            title="View Citizen"
-                            className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-                          >
-                            <Eye size={17} />
-                          </button>
+                      </div>
 
+                    </td>
 
-                          {/* EDIT */}
+                  </tr>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              editCitizen(citizen.id)
-                            }
-                            title="Edit Citizen"
-                            className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition"
-                          >
-                            <Pencil size={17} />
-                          </button>
-
-
-                          {/* DELETE */}
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              deleteCitizen(citizen.id)
-                            }
-                            title="Delete Citizen"
-                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
-                          >
-                            <Trash2 size={17} />
-                          </button>
-
-                        </div>
-
-                      </td>
-
-                    </tr>
-
-                  )
-                )}
+                ))}
 
               </tbody>
 
@@ -820,7 +775,6 @@ const Citizen = () => {
         )}
 
       </div>
-
 
       {/* =====================================
           VIEW CITIZEN MODAL
@@ -850,16 +804,15 @@ const Citizen = () => {
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedCitizen(null)
-                }
+                onClick={() => setSelectedCitizen(null)}
+                title="Close"
+                aria-label="Close"
                 className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition"
               >
                 <X size={20} />
               </button>
 
             </div>
-
 
             {/* Modal Body */}
 
@@ -879,7 +832,6 @@ const Citizen = () => {
 
               </div>
 
-
               {/* Name */}
 
               <div>
@@ -893,7 +845,6 @@ const Citizen = () => {
                 </p>
 
               </div>
-
 
               {/* Email */}
 
@@ -909,7 +860,6 @@ const Citizen = () => {
 
               </div>
 
-
               {/* Phone */}
 
               <div>
@@ -923,7 +873,6 @@ const Citizen = () => {
                 </p>
 
               </div>
-
 
               {/* Department */}
 
@@ -941,16 +890,13 @@ const Citizen = () => {
 
             </div>
 
-
             {/* Modal Footer */}
 
             <div className="flex justify-end p-5 border-t">
 
               <button
                 type="button"
-                onClick={() =>
-                  setSelectedCitizen(null)
-                }
+                onClick={() => setSelectedCitizen(null)}
                 className="bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-900 transition"
               >
                 Close

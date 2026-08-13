@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Eye,
@@ -21,6 +21,36 @@ type RequestData = {
   department: string;
   status: string;
   description: string;
+};
+
+// =========================
+// LOAD INITIAL REQUESTS
+// =========================
+
+const loadRequests = (): RequestData[] => {
+  const savedRequests = sessionStorage.getItem(
+    "government_requests"
+  );
+
+  if (savedRequests) {
+    try {
+      return JSON.parse(savedRequests);
+    } catch {
+      sessionStorage.removeItem("government_requests");
+    }
+  }
+
+  return [];
+};
+
+// =========================
+// GENERATE NUMERIC REQUEST ID
+// =========================
+
+const generateRequestNumericId = (): number => {
+  return Math.floor(
+    Math.random() * 1000000000
+  );
 };
 
 // =========================
@@ -57,31 +87,14 @@ const Requests = () => {
   // REQUESTS LIST
   // =========================
 
-  const [requests, setRequests] = useState<RequestData[]>([]);
+  const [requests, setRequests] =
+    useState<RequestData[]>(loadRequests);
 
   // =========================
   // EDIT STATE
   // =========================
 
   const [editId, setEditId] = useState<number | null>(null);
-
-  // =========================
-  // LOAD SESSION DATA
-  // =========================
-
-  useEffect(() => {
-    const savedRequests = sessionStorage.getItem(
-      "government_requests"
-    );
-
-    if (savedRequests) {
-      try {
-        setRequests(JSON.parse(savedRequests));
-      } catch {
-        sessionStorage.removeItem("government_requests");
-      }
-    }
-  }, []);
 
   // =========================
   // SAVE REQUESTS
@@ -119,27 +132,31 @@ const Requests = () => {
     // GENERATE REQUEST ID
     // =========================
 
-    let generatedRequestId = "";
+    const existingRequest = isEditing
+      ? requests.find(
+          (request) => request.id === editId
+        )
+      : undefined;
 
-    if (isEditing) {
-      const existingRequest = requests.find(
-        (request) => request.id === editId
-      );
+    const generatedRequestId = isEditing
+      ? existingRequest?.requestId || ""
+      : `REQ-${String(
+          requests.length + 1
+        ).padStart(3, "0")}`;
 
-      generatedRequestId =
-        existingRequest?.requestId || "";
-    } else {
-      generatedRequestId = `REQ-${String(
-        requests.length + 1
-      ).padStart(3, "0")}`;
-    }
+    // =========================
+    // GENERATE NUMERIC ID
+    // =========================
+
+    const requestNumericId =
+      editId ?? generateRequestNumericId();
 
     // =========================
     // NEW REQUEST OBJECT
     // =========================
 
     const newRequest: RequestData = {
-      id: editId ?? Date.now(),
+      id: requestNumericId,
       requestId: generatedRequestId,
       citizenName: citizenName.trim(),
       requestType,
@@ -538,9 +555,7 @@ const Requests = () => {
 
         </div>
 
-        {/* =========================================
-            SEARCH
-        ========================================= */}
+        {/* SEARCH */}
 
         <div className="relative mb-4">
 
@@ -561,9 +576,7 @@ const Requests = () => {
 
         </div>
 
-        {/* =========================================
-            FILTERS
-        ========================================= */}
+        {/* FILTERS */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
 
@@ -680,9 +693,7 @@ const Requests = () => {
 
         )}
 
-        {/* =========================================
-            TABLE
-        ========================================= */}
+        {/* TABLE */}
 
         <div className="overflow-x-auto">
 
@@ -801,7 +812,7 @@ const Requests = () => {
                         </p>
                       </td>
 
-                      {/* ACTION ICONS */}
+                      {/* ACTIONS */}
 
                       <td className="border p-3">
 
