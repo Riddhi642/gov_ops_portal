@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Eye,
@@ -7,51 +7,13 @@ import {
   Search,
   Filter,
   X,
+  RefreshCw,
 } from "lucide-react";
 
-// =========================
-// REQUEST DATA TYPE
-// =========================
-
-type RequestData = {
-  id: number;
-  requestId: string;
-  citizenName: string;
-  requestType: string;
-  department: string;
-  status: string;
-  description: string;
-};
-
-// =========================
-// LOAD INITIAL REQUESTS
-// =========================
-
-const loadRequests = (): RequestData[] => {
-  const savedRequests = sessionStorage.getItem(
-    "government_requests"
-  );
-
-  if (savedRequests) {
-    try {
-      return JSON.parse(savedRequests);
-    } catch {
-      sessionStorage.removeItem("government_requests");
-    }
-  }
-
-  return [];
-};
-
-// =========================
-// GENERATE NUMERIC REQUEST ID
-// =========================
-
-const generateRequestNumericId = (): number => {
-  return Math.floor(
-    Math.random() * 1000000000
-  );
-};
+import {
+  getRequests,
+  type RequestData,
+} from "../services/api";
 
 // =========================
 // REQUESTS COMPONENT
@@ -84,20 +46,97 @@ const Requests = () => {
   const [statusFilter, setStatusFilter] = useState("");
 
   // =========================
-  // REQUESTS LIST
+  // REQUEST DATA
   // =========================
 
-  const [requests, setRequests] =
-    useState<RequestData[]>(loadRequests);
+  const [requests, setRequests] = useState<RequestData[]>([]);
+
+  // =========================
+  // LOADING
+  // =========================
+
+  const [loading, setLoading] = useState(true);
+
+  // =========================
+  // ERROR
+  // =========================
+
+  const [error, setError] = useState("");
 
   // =========================
   // EDIT STATE
   // =========================
 
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
 
   // =========================
-  // SAVE REQUESTS
+  // LOAD REQUESTS
+  // =========================
+
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // API / development service मधून data घेतो
+      const apiRequests = await getRequests();
+
+      // Session मध्ये user ने add केलेले requests
+      const savedRequests =
+        sessionStorage.getItem("government_requests");
+
+      let sessionRequests: RequestData[] = [];
+
+      if (savedRequests) {
+        try {
+          sessionRequests = JSON.parse(savedRequests);
+        } catch {
+          sessionStorage.removeItem("government_requests");
+        }
+      }
+
+      // API data + session data combine
+      const combinedRequests = [
+        ...apiRequests,
+        ...sessionRequests,
+      ];
+
+      // Duplicate request IDs avoid करण्यासाठी Map
+      const uniqueRequests = Array.from(
+        new Map(
+          combinedRequests.map((request) => [
+            request.requestId,
+            request,
+          ])
+        ).values()
+      );
+
+      setRequests(uniqueRequests);
+    } catch (err) {
+      console.error("Failed to load requests:", err);
+
+      setError(
+        "Unable to load requests. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =========================
+  // INITIAL LOAD
+  // =========================
+
+  useEffect(() => {
+    const load = async () => {
+      await loadRequests();
+    };
+
+    load();
+  }, []);
+
+  // =========================
+  // SAVE USER REQUESTS
   // =========================
 
   const saveRequests = (data: RequestData[]) => {
@@ -108,10 +147,20 @@ const Requests = () => {
   };
 
   // =========================
+  // GENERATE REQUEST ID
+  // =========================
+
+  const generateRequestId = () => {
+    return `REQ-${Date.now()}`;
+  };
+
+  // =========================
   // FORM SUBMIT
   // =========================
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
 
     // Validation
@@ -128,41 +177,39 @@ const Requests = () => {
 
     const isEditing = editId !== null;
 
-    // =========================
-    // GENERATE REQUEST ID
-    // =========================
-
+    // Existing request शोधतो
     const existingRequest = isEditing
       ? requests.find(
           (request) => request.id === editId
         )
       : undefined;
 
+    // Existing request ID edit वेळी ठेवतो
     const generatedRequestId = isEditing
-      ? existingRequest?.requestId || ""
-      : `REQ-${String(
-          requests.length + 1
-        ).padStart(3, "0")}`;
+      ? existingRequest?.requestId ||
+        generateRequestId()
+      : generateRequestId();
 
-    // =========================
-    // GENERATE NUMERIC ID
-    // =========================
-
-    const requestNumericId =
-      editId ?? generateRequestNumericId();
-
-    // =========================
-    // NEW REQUEST OBJECT
-    // =========================
-
+    // New / updated request object
     const newRequest: RequestData = {
-      id: requestNumericId,
-      requestId: generatedRequestId,
-      citizenName: citizenName.trim(),
+      id:
+        editId ??
+        generateRequestId(),
+
+      requestId:
+        generatedRequestId,
+
+      citizenName:
+        citizenName.trim(),
+
       requestType,
+
       department,
+
       status,
-      description: description.trim(),
+
+      description:
+        description.trim(),
     };
 
     // =========================
@@ -170,17 +217,20 @@ const Requests = () => {
     // =========================
 
     if (isEditing) {
-      const updatedRequests = requests.map(
-        (request) =>
+      const updatedRequests =
+        requests.map((request) =>
           request.id === editId
             ? newRequest
             : request
-      );
+        );
 
       setRequests(updatedRequests);
+
       saveRequests(updatedRequests);
 
-      alert("Request Updated Successfully!");
+      alert(
+        "Request Updated Successfully!"
+      );
     }
 
     // =========================
@@ -194,16 +244,13 @@ const Requests = () => {
       ];
 
       setRequests(updatedRequests);
+
       saveRequests(updatedRequests);
 
       alert(
         `Request Added Successfully! ID: ${generatedRequestId}`
       );
     }
-
-    // =========================
-    // RESET FORM
-    // =========================
 
     resetForm();
   };
@@ -225,9 +272,10 @@ const Requests = () => {
   // SEARCH + FILTER
   // =========================
 
-  const filteredRequests = requests.filter(
-    (request) => {
-      const searchText = search.toLowerCase();
+  const filteredRequests =
+    requests.filter((request) => {
+      const searchText =
+        search.toLowerCase().trim();
 
       const matchesSearch =
         request.requestId
@@ -248,36 +296,52 @@ const Requests = () => {
 
       const matchesDepartment =
         departmentFilter === "" ||
-        request.department === departmentFilter;
+        request.department ===
+          departmentFilter;
 
       const matchesStatus =
         statusFilter === "" ||
-        request.status === statusFilter;
+        request.status ===
+          statusFilter;
 
       return (
         matchesSearch &&
         matchesDepartment &&
         matchesStatus
       );
-    }
-  );
+    });
 
   // =========================
   // EDIT REQUEST
   // =========================
 
-  const editRequest = (id: number) => {
+  const editRequest = (id: string) => {
     const request = requests.find(
       (item) => item.id === id
     );
 
     if (!request) return;
 
-    setCitizenName(request.citizenName);
-    setRequestType(request.requestType);
-    setDepartment(request.department);
-    setStatus(request.status);
-    setDescription(request.description);
+    setCitizenName(
+      request.citizenName
+    );
+
+    setRequestType(
+      request.requestType
+    );
+
+    setDepartment(
+      request.department
+    );
+
+    setStatus(
+      request.status
+    );
+
+    setDescription(
+      request.description
+    );
+
     setEditId(id);
 
     window.scrollTo({
@@ -290,24 +354,30 @@ const Requests = () => {
   // DELETE REQUEST
   // =========================
 
-  const deleteRequest = (id: number) => {
+  const deleteRequest = (
+    id: string
+  ) => {
     const request = requests.find(
       (item) => item.id === id
     );
 
     if (!request) return;
 
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${request.requestId}?`
-    );
+    const confirmed =
+      window.confirm(
+        `Are you sure you want to delete ${request.requestId}?`
+      );
 
     if (!confirmed) return;
 
-    const updatedRequests = requests.filter(
-      (request) => request.id !== id
-    );
+    const updatedRequests =
+      requests.filter(
+        (request) =>
+          request.id !== id
+      );
 
     setRequests(updatedRequests);
+
     saveRequests(updatedRequests);
 
     if (editId === id) {
@@ -326,7 +396,88 @@ const Requests = () => {
   };
 
   // =========================
-  // UI
+  // LOADING UI
+  // =========================
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+
+          <div className="flex items-center gap-3 mb-6">
+
+            <RefreshCw
+              size={22}
+              className="animate-spin text-blue-600"
+            />
+
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">
+                Loading Requests
+              </h1>
+
+              <p className="text-gray-500 text-sm mt-1">
+                Fetching request data...
+              </p>
+            </div>
+
+          </div>
+
+          <div className="space-y-3 animate-pulse">
+
+            <div className="h-12 bg-gray-200 rounded-lg" />
+
+            <div className="h-12 bg-gray-200 rounded-lg" />
+
+            <div className="h-12 bg-gray-200 rounded-lg" />
+
+            <div className="h-12 bg-gray-200 rounded-lg" />
+
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // ERROR UI
+  // =========================
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+
+          <div className="text-red-600 text-4xl mb-3">
+            !
+          </div>
+
+          <h1 className="text-xl font-bold text-red-800">
+            Unable to Load Requests
+          </h1>
+
+          <p className="text-red-600 mt-2">
+            {error}
+          </p>
+
+          <button
+            type="button"
+            onClick={loadRequests}
+            className="mt-5 inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition"
+          >
+            <RefreshCw size={17} />
+
+            Retry
+          </button>
+
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // MAIN UI
   // =========================
 
   return (
@@ -357,6 +508,7 @@ const Requests = () => {
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600"
             >
               <X size={18} />
+
               Cancel Edit
             </button>
           )}
@@ -370,28 +522,27 @@ const Requests = () => {
           className="space-y-4"
         >
 
-          {/* Citizen Name */}
-
           <input
             type="text"
             placeholder="Citizen Name"
             value={citizenName}
             onChange={(e) =>
-              setCitizenName(e.target.value)
+              setCitizenName(
+                e.target.value
+              )
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           />
 
-          {/* Request Type */}
-
           <select
             value={requestType}
             onChange={(e) =>
-              setRequestType(e.target.value)
+              setRequestType(
+                e.target.value
+              )
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
-
             <option value="">
               Select Request Type
             </option>
@@ -430,16 +581,15 @@ const Requests = () => {
 
           </select>
 
-          {/* Department */}
-
           <select
             value={department}
             onChange={(e) =>
-              setDepartment(e.target.value)
+              setDepartment(
+                e.target.value
+              )
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
-
             <option value="">
               Select Department
             </option>
@@ -474,16 +624,15 @@ const Requests = () => {
 
           </select>
 
-          {/* Status */}
-
           <select
             value={status}
             onChange={(e) =>
-              setStatus(e.target.value)
+              setStatus(
+                e.target.value
+              )
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
-
             <option value="">
               Select Status
             </option>
@@ -506,19 +655,17 @@ const Requests = () => {
 
           </select>
 
-          {/* Description */}
-
           <textarea
             placeholder="Request Description"
             value={description}
             onChange={(e) =>
-              setDescription(e.target.value)
+              setDescription(
+                e.target.value
+              )
             }
             rows={4}
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           />
-
-          {/* Submit Button */}
 
           <button
             type="submit"
@@ -539,19 +686,31 @@ const Requests = () => {
 
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
 
-        {/* Header */}
+        {/* HEADER */}
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
 
           <div>
+
             <h2 className="text-2xl font-bold text-slate-800">
               Requests List
             </h2>
 
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mt-1">
               {filteredRequests.length} request(s) found
             </p>
+
           </div>
+
+          <button
+            type="button"
+            onClick={loadRequests}
+            className="inline-flex items-center justify-center gap-2 border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition"
+          >
+            <RefreshCw size={16} />
+
+            Refresh
+          </button>
 
         </div>
 
@@ -569,7 +728,9 @@ const Requests = () => {
             placeholder="Search by ID, citizen, department..."
             value={search}
             onChange={(e) =>
-              setSearch(e.target.value)
+              setSearch(
+                e.target.value
+              )
             }
             className="w-full border border-gray-300 rounded-lg py-3 pl-10 pr-4 outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -579,8 +740,6 @@ const Requests = () => {
         {/* FILTERS */}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-
-          {/* Department Filter */}
 
           <div className="relative">
 
@@ -592,11 +751,12 @@ const Requests = () => {
             <select
               value={departmentFilter}
               onChange={(e) =>
-                setDepartmentFilter(e.target.value)
+                setDepartmentFilter(
+                  e.target.value
+                )
               }
               className="w-full border border-gray-300 rounded-lg p-3 pl-10 outline-none focus:ring-2 focus:ring-blue-500"
             >
-
               <option value="">
                 All Departments
               </option>
@@ -633,8 +793,6 @@ const Requests = () => {
 
           </div>
 
-          {/* Status Filter */}
-
           <div className="relative">
 
             <Filter
@@ -645,11 +803,12 @@ const Requests = () => {
             <select
               value={statusFilter}
               onChange={(e) =>
-                setStatusFilter(e.target.value)
+                setStatusFilter(
+                  e.target.value
+                )
               }
               className="w-full border border-gray-300 rounded-lg p-3 pl-10 outline-none focus:ring-2 focus:ring-blue-500"
             >
-
               <option value="">
                 All Status
               </option>
@@ -676,125 +835,122 @@ const Requests = () => {
 
         </div>
 
-        {/* Clear Filters */}
+        {/* CLEAR FILTERS */}
 
         {(search ||
           departmentFilter ||
           statusFilter) && (
-
           <button
             type="button"
             onClick={clearFilters}
             className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 mb-4"
           >
             <X size={16} />
+
             Clear Filters
           </button>
-
         )}
 
-        {/* TABLE */}
+        {/* EMPTY STATE */}
 
-        <div className="overflow-x-auto">
+        {filteredRequests.length === 0 ? (
 
-          <table className="w-full border-collapse">
+          <div className="text-center py-12 border border-dashed border-gray-300 rounded-xl">
 
-            <thead>
+            <Search
+              size={36}
+              className="mx-auto text-gray-300 mb-3"
+            />
 
-              <tr className="bg-slate-100">
+            <h3 className="font-semibold text-gray-700">
+              No Requests Found
+            </h3>
 
-                <th className="border p-3 text-left">
-                  Request ID
-                </th>
+            <p className="text-sm text-gray-500 mt-1">
+              Try changing your search or filters.
+            </p>
 
-                <th className="border p-3 text-left">
-                  Citizen Name
-                </th>
+          </div>
 
-                <th className="border p-3 text-left">
-                  Request Type
-                </th>
+        ) : (
 
-                <th className="border p-3 text-left">
-                  Department
-                </th>
+          <div className="overflow-x-auto">
 
-                <th className="border p-3 text-left">
-                  Status
-                </th>
+            <table className="w-full border-collapse">
 
-                <th className="border p-3 text-left">
-                  Description
-                </th>
+              <thead>
 
-                <th className="border p-3 text-center">
-                  Actions
-                </th>
+                <tr className="bg-slate-100">
 
-              </tr>
+                  <th className="border p-3 text-left">
+                    Request ID
+                  </th>
 
-            </thead>
+                  <th className="border p-3 text-left">
+                    Citizen Name
+                  </th>
 
-            <tbody>
+                  <th className="border p-3 text-left">
+                    Request Type
+                  </th>
 
-              {filteredRequests.length === 0 ? (
+                  <th className="border p-3 text-left">
+                    Department
+                  </th>
 
-                <tr>
+                  <th className="border p-3 text-left">
+                    Status
+                  </th>
 
-                  <td
-                    colSpan={7}
-                    className="text-center p-10 text-gray-500"
-                  >
-                    No Requests Found
-                  </td>
+                  <th className="border p-3 text-left">
+                    Description
+                  </th>
+
+                  <th className="border p-3 text-center">
+                    Actions
+                  </th>
 
                 </tr>
 
-              ) : (
+              </thead>
 
-                filteredRequests.map(
+              <tbody>
+
+                {filteredRequests.map(
                   (request) => (
-
                     <tr
                       key={request.id}
                       className="hover:bg-slate-50 transition"
                     >
 
-                      {/* Request ID */}
-
                       <td className="border p-3 font-semibold text-blue-600">
                         {request.requestId}
                       </td>
-
-                      {/* Citizen */}
 
                       <td className="border p-3">
                         {request.citizenName}
                       </td>
 
-                      {/* Request Type */}
-
                       <td className="border p-3">
                         {request.requestType}
                       </td>
-
-                      {/* Department */}
 
                       <td className="border p-3">
                         {request.department}
                       </td>
 
-                      {/* Status */}
-
                       <td className="border p-3">
 
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            request.status === "Approved"
+                            request.status ===
+                            "Approved"
                               ? "bg-green-100 text-green-700"
-                              : request.status === "Rejected"
+                              : request.status ===
+                                "Rejected"
                               ? "bg-red-100 text-red-700"
-                              : request.status === "In Progress"
+                              : request.status ===
+                                "In Progress"
                               ? "bg-blue-100 text-blue-700"
                               : "bg-yellow-100 text-yellow-700"
                           }`}
@@ -804,15 +960,13 @@ const Requests = () => {
 
                       </td>
 
-                      {/* Description */}
-
                       <td className="border p-3 max-w-xs">
+
                         <p className="truncate">
                           {request.description}
                         </p>
-                      </td>
 
-                      {/* ACTIONS */}
+                      </td>
 
                       <td className="border p-3">
 
@@ -841,7 +995,9 @@ const Requests = () => {
                             title="Edit Request"
                             aria-label="Edit Request"
                             onClick={() =>
-                              editRequest(request.id)
+                              editRequest(
+                                request.id
+                              )
                             }
                             className="w-9 h-9 flex items-center justify-center rounded-lg bg-yellow-100 text-yellow-600 hover:bg-yellow-500 hover:text-white transition"
                           >
@@ -855,7 +1011,9 @@ const Requests = () => {
                             title="Delete Request"
                             aria-label="Delete Request"
                             onClick={() =>
-                              deleteRequest(request.id)
+                              deleteRequest(
+                                request.id
+                              )
                             }
                             className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-500 hover:text-white transition"
                           >
@@ -867,17 +1025,16 @@ const Requests = () => {
                       </td>
 
                     </tr>
-
                   )
-                )
+                )}
 
-              )}
+              </tbody>
 
-            </tbody>
+            </table>
 
-          </table>
+          </div>
 
-        </div>
+        )}
 
       </div>
 
