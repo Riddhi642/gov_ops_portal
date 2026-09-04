@@ -53,4 +53,106 @@ dist/assets/index-BCXqBR8o.js   296.51 kB │ gzip: 83.12 kB
 
 ✓ built in 2.29s
 
+Task 2 outputs :-
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run build 
+
+> gov_operations_portal@0.0.0 build
+> tsc -b && vite build
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.2.0 building client environment for production...
+✓ 2169 modules transformed.
+computing gzip size...
+dist/index.html                   0.47 kB │ gzip:   0.30 kB
+dist/assets/index-DdZI-z5Q.css   25.22 kB │ gzip:   5.57 kB
+dist/assets/index-t2Xvptq_.js   448.33 kB │ gzip: 133.64 kB
+
+✓ built in 4.66s
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run dev
+
+> gov_operations_portal@0.0.0 dev
+> vite
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+  VITE v8.2.0  ready in 750 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+9:11:45 pm [vite] (client) hmr update /src/App.tsx, /src/index.css
+Terminate batch job (Y/N)? y
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run lint 
+
+> gov_operations_portal@0.0.0 lint
+> eslint .
+
+UNIT TEST OUTPUT OF TASK 2
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run test:unit 
+
+> gov_operations_portal@0.0.0 test:unit
+> vitest run tests/unit
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v4.1.11 C:/Users/acer/OneDrive/Desktop/Goverment_portal
+
+ ✓ tests/unit/unit.test.ts (2 tests) 5ms
+   ✓ Basic Unit Tests (2)
+     ✓ should add two numbers correctly 3ms
+     ✓ should check a valid citizen name 0ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  21:15:15
+   Duration  823ms (transform 48ms, setup 0ms, import 92ms, tests 5ms, environment 0ms)
+
+PLAYWRIGHT OUTPUT OF TASK 2
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npx playwright text
+^CTerminate batch job (Y/N)? y
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npx playwright test
+[WebServer] (!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+[WebServer]   - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+[WebServer] Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+Running 1 test using 1 worker
+
+  ✓  1 [chromium] › tests\e2e\portal.spec.ts:3:1 › Complete request creation flow (4.2s)
+
+  1 passed (10.7s)
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run lint 
+
+> gov_operations_portal@0.0.0 lint
+> eslint .
+
+BUILD OUTPUT OF TASK2 2
+
+C:\Users\acer\OneDrive\Desktop\Goverment_portal>npm run build
+
+> gov_operations_portal@0.0.0 build
+> tsc -b && vite build
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vite.config.ts:14:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+vite v8.2.0 building client environment for production...
+✓ 2169 modules transformed.
+computing gzip size...
+dist/index.html                   0.47 kB │ gzip:   0.30 kB
+dist/assets/index-DdZI-z5Q.css   25.22 kB │ gzip:   5.57 kB
+dist/assets/index-t2Xvptq_.js   448.33 kB │ gzip: 133.64 kB
+
+✓ built in 999ms
+
 C:\Users\acer\OneDrive\Desktop\Goverment_portal>
