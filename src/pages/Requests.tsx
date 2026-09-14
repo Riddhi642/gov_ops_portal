@@ -12,7 +12,11 @@ import {
 
 import {
   getRequests,
+  addRequest,
+  updateRequest,
+  deleteRequest as deleteRequestFromService,
   type RequestData,
+  type RequestStatus,
 } from "../services/api";
 
 // =========================
@@ -29,7 +33,7 @@ const Requests = () => {
   const [citizenName, setCitizenName] = useState("");
   const [requestType, setRequestType] = useState("");
   const [department, setDepartment] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<RequestStatus | "">("");
   const [description, setDescription] = useState("");
 
   // =========================
@@ -78,40 +82,9 @@ const Requests = () => {
       setLoading(true);
       setError("");
 
-      // API / development service मधून data घेतो
       const apiRequests = await getRequests();
 
-      // Session मध्ये user ने add केलेले requests
-      const savedRequests =
-        sessionStorage.getItem("government_requests");
-
-      let sessionRequests: RequestData[] = [];
-
-      if (savedRequests) {
-        try {
-          sessionRequests = JSON.parse(savedRequests);
-        } catch {
-          sessionStorage.removeItem("government_requests");
-        }
-      }
-
-      // API data + session data combine
-      const combinedRequests = [
-        ...apiRequests,
-        ...sessionRequests,
-      ];
-
-      // Duplicate request IDs avoid करण्यासाठी Map
-      const uniqueRequests = Array.from(
-        new Map(
-          combinedRequests.map((request) => [
-            request.requestId,
-            request,
-          ])
-        ).values()
-      );
-
-      setRequests(uniqueRequests);
+      setRequests(apiRequests);
     } catch (err) {
       console.error("Failed to load requests:", err);
 
@@ -128,42 +101,63 @@ const Requests = () => {
   // =========================
 
   useEffect(() => {
-    const load = async () => {
-      await loadRequests();
+    const timer = window.setTimeout(() => {
+      void loadRequests();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
     };
-
-    load();
   }, []);
-
-  // =========================
-  // SAVE USER REQUESTS
-  // =========================
-
-  const saveRequests = (data: RequestData[]) => {
-    sessionStorage.setItem(
-      "government_requests",
-      JSON.stringify(data)
-    );
-  };
 
   // =========================
   // GENERATE REQUEST ID
   // =========================
 
   const generateRequestId = () => {
-    return `REQ-${Date.now()}`;
+    const numbers = requests
+      .map((request) => {
+        const match =
+          request.requestId.match(/^REQ-(\d+)$/);
+
+        return match
+          ? Number(match[1])
+          : 0;
+      })
+      .filter((number) => !Number.isNaN(number));
+
+    const nextNumber =
+      numbers.length > 0
+        ? Math.max(...numbers) + 1
+        : 1;
+
+    return `REQ-${String(nextNumber).padStart(
+      3,
+      "0"
+    )}`;
+  };
+
+  // =========================
+  // GENERATE UNIQUE ID
+  // =========================
+
+  const generateNumericId = () => {
+    return String(Date.now());
   };
 
   // =========================
   // FORM SUBMIT
   // =========================
 
-  const handleSubmit = (
+  const handleSubmit = async (
     e: React.FormEvent
   ) => {
     e.preventDefault();
 
-    // Validation
+    // =========================
+    // REQUIRED FIELD VALIDATION
+    // =========================
+
     if (
       !citizenName.trim() ||
       !requestType ||
@@ -175,26 +169,86 @@ const Requests = () => {
       return;
     }
 
+    // =========================
+    // CITIZEN NAME VALIDATION
+    // =========================
+
+    if (citizenName.trim().length < 2) {
+      alert(
+        "Citizen name must contain at least 2 characters."
+      );
+      return;
+    }
+
+    // =========================
+    // DESCRIPTION VALIDATION
+    // =========================
+
+    if (description.trim().length < 5) {
+      alert(
+        "Description must contain at least 5 characters."
+      );
+      return;
+    }
+
     const isEditing = editId !== null;
 
-    // Existing request शोधतो
+    // =========================
+    // EXISTING REQUEST
+    // =========================
+
     const existingRequest = isEditing
       ? requests.find(
-          (request) => request.id === editId
+          (request) =>
+            request.id === editId
         )
       : undefined;
 
-    // Existing request ID edit वेळी ठेवतो
+    if (isEditing && !existingRequest) {
+      alert("Request not found.");
+      return;
+    }
+
+    // =========================
+    // DUPLICATE VALIDATION
+    // =========================
+
+    const duplicateRequest = requests.find(
+      (request) =>
+        request.id !== editId &&
+        request.citizenName
+          .trim()
+          .toLowerCase() ===
+          citizenName
+            .trim()
+            .toLowerCase() &&
+        request.requestType === requestType &&
+        request.department === department
+    );
+
+    if (duplicateRequest) {
+      alert(
+        "A similar request already exists for this citizen."
+      );
+      return;
+    }
+
+    // =========================
+    // REQUEST ID
+    // =========================
+
     const generatedRequestId = isEditing
-      ? existingRequest?.requestId ||
-        generateRequestId()
+      ? existingRequest?.requestId || ""
       : generateRequestId();
 
-    // New / updated request object
+    // =========================
+    // REQUEST OBJECT
+    // =========================
+
     const newRequest: RequestData = {
       id:
         editId ??
-        generateRequestId(),
+        generateNumericId(),
 
       requestId:
         generatedRequestId,
@@ -212,47 +266,55 @@ const Requests = () => {
         description.trim(),
     };
 
-    // =========================
-    // UPDATE REQUEST
-    // =========================
+    try {
+      // =========================
+      // UPDATE REQUEST
+      // =========================
 
-    if (isEditing) {
-      const updatedRequests =
-        requests.map((request) =>
-          request.id === editId
-            ? newRequest
-            : request
+      if (isEditing) {
+        await updateRequest(newRequest);
+
+        setRequests((currentRequests) =>
+          currentRequests.map((request) =>
+            request.id === editId
+              ? newRequest
+              : request
+          )
         );
 
-      setRequests(updatedRequests);
+        alert(
+          "Request Updated Successfully!"
+        );
+      }
 
-      saveRequests(updatedRequests);
+      // =========================
+      // ADD REQUEST
+      // =========================
+
+      else {
+        await addRequest(newRequest);
+
+        setRequests((currentRequests) => [
+          ...currentRequests,
+          newRequest,
+        ]);
+
+        alert(
+          `Request Added Successfully! ID: ${generatedRequestId}`
+        );
+      }
+
+      resetForm();
+    } catch (err) {
+      console.error(
+        "Failed to save request:",
+        err
+      );
 
       alert(
-        "Request Updated Successfully!"
+        "Failed to save request. Please try again."
       );
     }
-
-    // =========================
-    // ADD REQUEST
-    // =========================
-
-    else {
-      const updatedRequests = [
-        ...requests,
-        newRequest,
-      ];
-
-      setRequests(updatedRequests);
-
-      saveRequests(updatedRequests);
-
-      alert(
-        `Request Added Successfully! ID: ${generatedRequestId}`
-      );
-    }
-
-    resetForm();
   };
 
   // =========================
@@ -354,7 +416,7 @@ const Requests = () => {
   // DELETE REQUEST
   // =========================
 
-  const deleteRequest = (
+  const deleteRequest = async (
     id: string
   ) => {
     const request = requests.find(
@@ -370,18 +432,31 @@ const Requests = () => {
 
     if (!confirmed) return;
 
-    const updatedRequests =
-      requests.filter(
-        (request) =>
-          request.id !== id
+    try {
+      await deleteRequestFromService(id);
+
+      setRequests((currentRequests) =>
+        currentRequests.filter(
+          (item) => item.id !== id
+        )
       );
 
-    setRequests(updatedRequests);
+      if (editId === id) {
+        resetForm();
+      }
 
-    saveRequests(updatedRequests);
+      alert(
+        "Request deleted successfully."
+      );
+    } catch (err) {
+      console.error(
+        "Failed to delete request:",
+        err
+      );
 
-    if (editId === id) {
-      resetForm();
+      alert(
+        "Failed to delete request. Please try again."
+      );
     }
   };
 
@@ -424,15 +499,10 @@ const Requests = () => {
           </div>
 
           <div className="space-y-3 animate-pulse">
-
             <div className="h-12 bg-gray-200 rounded-lg" />
-
             <div className="h-12 bg-gray-200 rounded-lg" />
-
             <div className="h-12 bg-gray-200 rounded-lg" />
-
             <div className="h-12 bg-gray-200 rounded-lg" />
-
           </div>
 
         </div>
@@ -463,11 +533,12 @@ const Requests = () => {
 
           <button
             type="button"
-            onClick={loadRequests}
+            onClick={() => {
+              void loadRequests();
+            }}
             className="mt-5 inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition"
           >
             <RefreshCw size={17} />
-
             Retry
           </button>
 
@@ -508,7 +579,6 @@ const Requests = () => {
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-red-600"
             >
               <X size={18} />
-
               Cancel Edit
             </button>
           )}
@@ -543,6 +613,7 @@ const Requests = () => {
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
+
             <option value="">
               Select Request Type
             </option>
@@ -590,6 +661,7 @@ const Requests = () => {
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
+
             <option value="">
               Select Department
             </option>
@@ -628,11 +700,14 @@ const Requests = () => {
             value={status}
             onChange={(e) =>
               setStatus(
-                e.target.value
+                e.target.value as
+                  | RequestStatus
+                  | ""
               )
             }
             className="w-full border border-gray-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500"
           >
+
             <option value="">
               Select Status
             </option>
@@ -677,7 +752,6 @@ const Requests = () => {
           </button>
 
         </form>
-
       </div>
 
       {/* =========================================
@@ -691,7 +765,6 @@ const Requests = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
 
           <div>
-
             <h2 className="text-2xl font-bold text-slate-800">
               Requests List
             </h2>
@@ -699,16 +772,16 @@ const Requests = () => {
             <p className="text-sm text-gray-500 mt-1">
               {filteredRequests.length} request(s) found
             </p>
-
           </div>
 
           <button
             type="button"
-            onClick={loadRequests}
+            onClick={() => {
+              void loadRequests();
+            }}
             className="inline-flex items-center justify-center gap-2 border border-gray-300 px-4 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition"
           >
             <RefreshCw size={16} />
-
             Refresh
           </button>
 
@@ -757,6 +830,7 @@ const Requests = () => {
               }
               className="w-full border border-gray-300 rounded-lg p-3 pl-10 outline-none focus:ring-2 focus:ring-blue-500"
             >
+
               <option value="">
                 All Departments
               </option>
@@ -809,6 +883,7 @@ const Requests = () => {
               }
               className="w-full border border-gray-300 rounded-lg p-3 pl-10 outline-none focus:ring-2 focus:ring-blue-500"
             >
+
               <option value="">
                 All Status
               </option>
@@ -846,7 +921,6 @@ const Requests = () => {
             className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 mb-4"
           >
             <X size={16} />
-
             Clear Filters
           </button>
         )}
@@ -873,6 +947,8 @@ const Requests = () => {
           </div>
 
         ) : (
+
+          /* TABLE */
 
           <div className="overflow-x-auto">
 
@@ -918,6 +994,7 @@ const Requests = () => {
 
                 {filteredRequests.map(
                   (request) => (
+
                     <tr
                       key={request.id}
                       className="hover:bg-slate-50 transition"
@@ -1010,11 +1087,11 @@ const Requests = () => {
                             type="button"
                             title="Delete Request"
                             aria-label="Delete Request"
-                            onClick={() =>
-                              deleteRequest(
+                            onClick={() => {
+                              void deleteRequest(
                                 request.id
-                              )
-                            }
+                              );
+                            }}
                             className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-100 text-red-600 hover:bg-red-500 hover:text-white transition"
                           >
                             <Trash2 size={18} />
@@ -1033,11 +1110,9 @@ const Requests = () => {
             </table>
 
           </div>
-
         )}
 
       </div>
-
     </div>
   );
 };

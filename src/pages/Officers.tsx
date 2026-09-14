@@ -7,17 +7,16 @@ import {
   Users,
   Building2,
   X,
+  Eye,
 } from "lucide-react";
 
-type OfficerData = {
-  id: number;
-  officerId: string;
-  name: string;
-  email: string;
-  phone: string;
-  department: string;
-  designation: string;
-};
+import {
+  getOfficers,
+  addOfficer,
+  updateOfficer,
+  deleteOfficer as deleteOfficerFromService,
+  type OfficerData,
+} from "../services/api";
 
 const Officers = () => {
   // =========================
@@ -31,41 +30,31 @@ const Officers = () => {
   const [designation, setDesignation] = useState("");
 
   // =========================
-  // SEARCH STATE
+  // SEARCH
   // =========================
 
   const [search, setSearch] = useState("");
 
   // =========================
-  // OFFICERS LIST
+  // OFFICERS
   // =========================
 
-  const [officers, setOfficers] = useState<OfficerData[]>([]);
+  const [officers, setOfficers] = useState<OfficerData[]>(
+    () => getOfficers()
+  );
 
   // =========================
-  // EDIT STATE
+  // EDIT
   // =========================
 
   const [editId, setEditId] = useState<number | null>(null);
 
   // =========================
-  // GENERATE OFFICER ID
+  // VIEW MODAL
   // =========================
 
-  const generateOfficerId = () => {
-    if (officers.length === 0) {
-      return "OFF-001";
-    }
-
-    const numbers = officers.map(
-      (officer) =>
-        parseInt(officer.officerId.replace("OFF-", ""), 10) || 0
-    );
-
-    const maxNumber = Math.max(...numbers);
-
-    return `OFF-${String(maxNumber + 1).padStart(3, "0")}`;
-  };
+  const [selectedOfficer, setSelectedOfficer] =
+    useState<OfficerData | null>(null);
 
   // =========================
   // RESET FORM
@@ -81,13 +70,74 @@ const Officers = () => {
   };
 
   // =========================
+  // GENERATE OFFICER ID
+  // =========================
+
+  const generateOfficerId = () => {
+    if (officers.length === 0) {
+      return "OFF-001";
+    }
+
+    const numbers = officers.map((officer) => {
+      const numericPart = Number(
+        officer.officerId.replace("OFF-", "")
+      );
+
+      return Number.isNaN(numericPart)
+        ? officer.id
+        : numericPart;
+    });
+
+    const maxNumber = Math.max(...numbers);
+
+    return `OFF-${String(maxNumber + 1).padStart(3, "0")}`;
+  };
+
+  // =========================
+  // VALID DEPARTMENT /
+  // DESIGNATION COMBINATIONS
+  // =========================
+
+  const validCombinations: Record<string, string[]> = {
+    Revenue: [
+      "Collector",
+      "Tehsildar",
+      "Revenue Officer",
+    ],
+
+    Health: [
+      "Health Officer",
+    ],
+
+    Education: [
+      "Education Officer",
+    ],
+
+    Transport: [
+      "Transport Officer",
+    ],
+
+    Police: [
+      "Police Inspector",
+    ],
+
+    Municipal: [
+      "Municipal Officer",
+    ],
+
+    "Water Supply": [
+      "Water Officer",
+    ],
+  };
+
+  // =========================
   // SUBMIT FORM
   // =========================
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
+    // Required fields
     if (
       !name.trim() ||
       !email.trim() ||
@@ -95,21 +145,91 @@ const Officers = () => {
       !department ||
       !designation
     ) {
-      alert("Please fill all fields");
+      alert("Please fill all fields.");
       return;
     }
 
+    // Name validation
+    if (name.trim().length < 2) {
+      alert("Officer name must contain at least 2 characters.");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    // Phone validation
+    const phoneRegex = /^[6-9]\d{9}$/;
+
+    if (!phoneRegex.test(phone.trim())) {
+      alert("Please enter a valid 10-digit Indian phone number.");
+      return;
+    }
+
+    // Department / designation validation
+    if (
+      !validCombinations[department] ||
+      !validCombinations[department].includes(designation)
+    ) {
+      alert(
+        "Selected designation is not valid for the selected department."
+      );
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
+
+    // Duplicate validation
+    const duplicateOfficer = officers.find((officer) => {
+      if (officer.id === editId) {
+        return false;
+      }
+
+      const sameEmail =
+        officer.email.trim().toLowerCase() ===
+        normalizedEmail;
+
+      const samePhone =
+        officer.phone.trim() === normalizedPhone;
+
+      return sameEmail || samePhone;
+    });
+
+    if (duplicateOfficer) {
+      if (
+        duplicateOfficer.email.trim().toLowerCase() ===
+        normalizedEmail
+      ) {
+        alert("An officer with this email already exists.");
+      } else {
+        alert(
+          "An officer with this phone number already exists."
+        );
+      }
+
+      return;
+    }
+
+    const isEditing = editId !== null;
+
     // =========================
-    // UPDATE EXISTING OFFICER
+    // UPDATE
     // =========================
 
-    if (editId !== null) {
+    if (isEditing) {
       const existingOfficer = officers.find(
         (officer) => officer.id === editId
       );
 
       if (!existingOfficer) {
-        alert("Officer not found");
+        alert("Officer not found. Please refresh and try again.");
+        resetForm();
         return;
       }
 
@@ -123,11 +243,9 @@ const Officers = () => {
         designation,
       };
 
-      setOfficers((prev) =>
-        prev.map((officer) =>
-          officer.id === editId ? updatedOfficer : officer
-        )
-      );
+      updateOfficer(updatedOfficer);
+
+      setOfficers(getOfficers());
 
       alert("Officer Updated Successfully!");
 
@@ -136,51 +254,94 @@ const Officers = () => {
     }
 
     // =========================
-    // ADD NEW OFFICER
+    // ADD
     // =========================
 
     const newOfficerId = generateOfficerId();
 
     const newOfficer: OfficerData = {
-      id: Date.now(),
+      id:
+        officers.length > 0
+          ? Math.max(
+              ...officers.map((officer) => officer.id)
+            ) + 1
+          : 1,
+
       officerId: newOfficerId,
+
       name: name.trim(),
+
       email: email.trim(),
+
       phone: phone.trim(),
+
       department,
+
       designation,
     };
 
-    setOfficers((prev) => [...prev, newOfficer]);
+    addOfficer(newOfficer);
 
-    alert(`Officer Added Successfully! ID: ${newOfficerId}`);
+    setOfficers(getOfficers());
+
+    alert(
+      `Officer Added Successfully! ID: ${newOfficerId}`
+    );
 
     resetForm();
   };
 
   // =========================
-  // SEARCH OFFICERS
+  // SEARCH
   // =========================
 
   const filteredOfficers = officers.filter((officer) => {
     const searchText = search.toLowerCase().trim();
 
     return (
-      officer.name.toLowerCase().includes(searchText) ||
-      officer.email.toLowerCase().includes(searchText) ||
-      officer.phone.toLowerCase().includes(searchText) ||
-      officer.department.toLowerCase().includes(searchText) ||
-      officer.designation.toLowerCase().includes(searchText) ||
-      officer.officerId.toLowerCase().includes(searchText)
+      officer.officerId
+        .toLowerCase()
+        .includes(searchText) ||
+      officer.name
+        .toLowerCase()
+        .includes(searchText) ||
+      officer.email
+        .toLowerCase()
+        .includes(searchText) ||
+      officer.phone
+        .toLowerCase()
+        .includes(searchText) ||
+      officer.department
+        .toLowerCase()
+        .includes(searchText) ||
+      officer.designation
+        .toLowerCase()
+        .includes(searchText)
     );
   });
+
+  // =========================
+  // VIEW OFFICER
+  // =========================
+
+  const viewOfficer = (id: number) => {
+    const officer = officers.find(
+      (item) => item.id === id
+    );
+
+    if (!officer) return;
+
+    setSelectedOfficer(officer);
+  };
 
   // =========================
   // EDIT OFFICER
   // =========================
 
   const editOfficer = (id: number) => {
-    const officer = officers.find((item) => item.id === id);
+    const officer = officers.find(
+      (item) => item.id === id
+    );
 
     if (!officer) return;
 
@@ -189,7 +350,6 @@ const Officers = () => {
     setPhone(officer.phone);
     setDepartment(officer.department);
     setDesignation(officer.designation);
-
     setEditId(id);
 
     window.scrollTo({
@@ -203,28 +363,35 @@ const Officers = () => {
   // =========================
 
   const deleteOfficer = (id: number) => {
-    const officer = officers.find((item) => item.id === id);
+    const officer = officers.find(
+      (item) => item.id === id
+    );
 
     if (!officer) return;
 
-    const confirmDelete = window.confirm(
+    const confirmed = window.confirm(
       `Are you sure you want to delete ${officer.name}?`
     );
 
-    if (!confirmDelete) return;
+    if (!confirmed) return;
 
-    setOfficers((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    deleteOfficerFromService(id);
 
-    // जर deleted officer edit होत असेल
+    setOfficers(getOfficers());
+
     if (editId === id) {
       resetForm();
     }
+
+    if (selectedOfficer?.id === id) {
+      setSelectedOfficer(null);
+    }
+
+    alert("Officer deleted successfully.");
   };
 
   // =========================
-  // KPI CALCULATIONS
+  // KPI
   // =========================
 
   const totalOfficers = officers.length;
@@ -238,15 +405,13 @@ const Officers = () => {
   ).size;
 
   // =========================
-  // RETURN
+  // UI
   // =========================
 
   return (
     <div className="space-y-6 w-full">
 
-      {/* =========================================
-          PAGE HEADER
-      ========================================= */}
+      {/* PAGE HEADER */}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
@@ -270,13 +435,11 @@ const Officers = () => {
 
       </div>
 
-      {/* =========================================
-          KPI CARDS
-      ========================================= */}
+      {/* KPI CARDS */}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-        {/* Total Officers */}
+        {/* TOTAL OFFICERS */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
@@ -300,7 +463,7 @@ const Officers = () => {
 
         </div>
 
-        {/* Departments */}
+        {/* DEPARTMENTS */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
@@ -324,7 +487,7 @@ const Officers = () => {
 
         </div>
 
-        {/* Designations */}
+        {/* DESIGNATIONS */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
@@ -350,15 +513,14 @@ const Officers = () => {
 
       </div>
 
-      {/* =========================================
-          ADD / EDIT OFFICER
-      ========================================= */}
+      {/* ADD / EDIT */}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
 
           <div>
+
             <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">
               {editId !== null
                 ? "Edit Officer"
@@ -370,9 +532,8 @@ const Officers = () => {
                 ? "Update officer information."
                 : "Register a new government officer."}
             </p>
-          </div>
 
-          {/* Cancel Edit */}
+          </div>
 
           {editId !== null && (
             <button
@@ -393,9 +554,10 @@ const Officers = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* Name */}
+            {/* NAME */}
 
             <div>
+
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Officer Name
               </label>
@@ -404,14 +566,18 @@ const Officers = () => {
                 type="text"
                 placeholder="Enter officer name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+
             </div>
 
-            {/* Email */}
+            {/* EMAIL */}
 
             <div>
+
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Email Address
               </label>
@@ -420,39 +586,51 @@ const Officers = () => {
                 type="email"
                 placeholder="officer@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+
             </div>
 
-            {/* Phone */}
+            {/* PHONE */}
 
             <div>
+
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Phone Number
               </label>
 
               <input
                 type="tel"
-                placeholder="Enter phone number"
+                placeholder="Enter 10-digit phone number"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) =>
+                  setPhone(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+
             </div>
 
-            {/* Department */}
+            {/* DEPARTMENT */}
 
             <div>
+
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Department
               </label>
 
               <select
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
+                onChange={(e) => {
+                  setDepartment(e.target.value);
+                  setDesignation("");
+                }}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
+
                 <option value="">
                   Select Department
                 </option>
@@ -484,10 +662,12 @@ const Officers = () => {
                 <option value="Water Supply">
                   Water Supply
                 </option>
+
               </select>
+
             </div>
 
-            {/* Designation */}
+            {/* DESIGNATION */}
 
             <div className="md:col-span-2">
 
@@ -497,44 +677,30 @@ const Officers = () => {
 
               <select
                 value={designation}
-                onChange={(e) => setDesignation(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) =>
+                  setDesignation(e.target.value)
+                }
+                disabled={!department}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
+
                 <option value="">
-                  Select Designation
+                  {department
+                    ? "Select Designation"
+                    : "Select Department First"}
                 </option>
 
-                <option value="Collector">
-                  Collector
-                </option>
+                {(validCombinations[department] || []).map(
+                  (item) => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      {item}
+                    </option>
+                  )
+                )}
 
-                <option value="Tehsildar">
-                  Tehsildar
-                </option>
-
-                <option value="Revenue Officer">
-                  Revenue Officer
-                </option>
-
-                <option value="Health Officer">
-                  Health Officer
-                </option>
-
-                <option value="Education Officer">
-                  Education Officer
-                </option>
-
-                <option value="Transport Officer">
-                  Transport Officer
-                </option>
-
-                <option value="Police Inspector">
-                  Police Inspector
-                </option>
-
-                <option value="Municipal Officer">
-                  Municipal Officer
-                </option>
               </select>
 
             </div>
@@ -549,6 +715,7 @@ const Officers = () => {
               type="submit"
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition"
             >
+
               {editId !== null ? (
                 <>
                   <Pencil size={18} />
@@ -560,6 +727,7 @@ const Officers = () => {
                   Save Officer
                 </>
               )}
+
             </button>
 
             {editId !== null && (
@@ -578,17 +746,14 @@ const Officers = () => {
 
       </div>
 
-      {/* =========================================
-          OFFICERS LIST
-      ========================================= */}
+      {/* OFFICERS LIST */}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-
-        {/* HEADER */}
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
 
           <div>
+
             <h2 className="text-xl sm:text-2xl font-semibold text-slate-800">
               Officers List
             </h2>
@@ -596,6 +761,7 @@ const Officers = () => {
             <p className="text-sm text-gray-500 mt-1">
               Search and manage registered officers.
             </p>
+
           </div>
 
           {/* SEARCH */}
@@ -611,7 +777,9 @@ const Officers = () => {
               type="text"
               placeholder="Search officers..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
               className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
 
@@ -645,15 +813,14 @@ const Officers = () => {
         ) : (
 
           <>
-            {/* =====================================
-                DESKTOP TABLE
-            ===================================== */}
+            {/* DESKTOP TABLE */}
 
             <div className="hidden md:block w-full overflow-x-auto">
 
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[950px]">
 
                 <thead>
+
                   <tr className="bg-slate-50">
 
                     <th className="text-left p-3 text-sm font-semibold text-slate-700 border-b">
@@ -685,6 +852,7 @@ const Officers = () => {
                     </th>
 
                   </tr>
+
                 </thead>
 
                 <tbody>
@@ -697,9 +865,11 @@ const Officers = () => {
                     >
 
                       <td className="p-3 border-b">
+
                         <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-sm font-medium">
                           {officer.officerId}
                         </span>
+
                       </td>
 
                       <td className="p-3 border-b font-medium text-slate-800">
@@ -730,19 +900,43 @@ const Officers = () => {
 
                         <div className="flex items-center justify-center gap-2">
 
+                          {/* VIEW */}
+
                           <button
                             type="button"
-                            onClick={() => editOfficer(officer.id)}
+                            onClick={() =>
+                              viewOfficer(officer.id)
+                            }
+                            title="View Officer"
+                            aria-label="View Officer"
+                            className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                          >
+                            <Eye size={17} />
+                          </button>
+
+                          {/* EDIT */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              editOfficer(officer.id)
+                            }
                             title="Edit Officer"
+                            aria-label="Edit Officer"
                             className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition"
                           >
                             <Pencil size={17} />
                           </button>
 
+                          {/* DELETE */}
+
                           <button
                             type="button"
-                            onClick={() => deleteOfficer(officer.id)}
+                            onClick={() =>
+                              deleteOfficer(officer.id)
+                            }
                             title="Delete Officer"
+                            aria-label="Delete Officer"
                             className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
                           >
                             <Trash2 size={17} />
@@ -762,9 +956,7 @@ const Officers = () => {
 
             </div>
 
-            {/* =====================================
-                MOBILE CARDS
-            ===================================== */}
+            {/* MOBILE CARDS */}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
 
@@ -775,21 +967,13 @@ const Officers = () => {
                   className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm"
                 >
 
-                  {/* CARD HEADER */}
+                  <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-semibold mb-2">
+                    {officer.officerId}
+                  </span>
 
-                  <div className="min-w-0">
-
-                    <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-semibold mb-2">
-                      {officer.officerId}
-                    </span>
-
-                    <h3 className="font-semibold text-slate-800 text-base break-words">
-                      {officer.name}
-                    </h3>
-
-                  </div>
-
-                  {/* DETAILS */}
+                  <h3 className="font-semibold text-slate-800 text-base break-words">
+                    {officer.name}
+                  </h3>
 
                   <div className="mt-4 space-y-2.5">
 
@@ -817,55 +1001,64 @@ const Officers = () => {
 
                     </div>
 
-                    <div className="flex items-center justify-between gap-2">
+                    <div>
 
-                      <div className="min-w-0">
+                      <span className="text-xs text-gray-400 block">
+                        Department
+                      </span>
 
-                        <span className="text-xs text-gray-400 block">
-                          Department
-                        </span>
+                      <span className="inline-block bg-purple-50 text-purple-700 px-2 py-1 rounded-full text-xs mt-1">
+                        {officer.department}
+                      </span>
 
-                        <span className="inline-block bg-purple-50 text-purple-700 px-2 py-1 rounded-full text-xs mt-1">
-                          {officer.department}
-                        </span>
+                    </div>
 
-                      </div>
+                    <div>
 
-                      <div className="min-w-0 text-right">
+                      <span className="text-xs text-gray-400 block">
+                        Designation
+                      </span>
 
-                        <span className="text-xs text-gray-400 block">
-                          Designation
-                        </span>
-
-                        <span className="text-xs text-slate-700 font-medium break-words">
-                          {officer.designation}
-                        </span>
-
-                      </div>
+                      <span className="text-sm text-slate-700 font-medium">
+                        {officer.designation}
+                      </span>
 
                     </div>
 
                   </div>
 
-                  {/* MOBILE ACTIONS */}
-
-                  <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t">
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t">
 
                     <button
                       type="button"
-                      onClick={() => editOfficer(officer.id)}
-                      className="flex items-center justify-center gap-2 bg-yellow-50 text-yellow-700 py-2.5 rounded-lg text-sm font-medium hover:bg-yellow-100 transition"
+                      onClick={() =>
+                        viewOfficer(officer.id)
+                      }
+                      className="flex items-center justify-center gap-1 bg-blue-50 text-blue-700 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-100 transition"
                     >
-                      <Pencil size={16} />
+                      <Eye size={15} />
+                      View
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        editOfficer(officer.id)
+                      }
+                      className="flex items-center justify-center gap-1 bg-yellow-50 text-yellow-700 py-2.5 rounded-lg text-sm font-medium hover:bg-yellow-100 transition"
+                    >
+                      <Pencil size={15} />
                       Edit
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => deleteOfficer(officer.id)}
-                      className="flex items-center justify-center gap-2 bg-red-50 text-red-700 py-2.5 rounded-lg text-sm font-medium hover:bg-red-100 transition"
+                      onClick={() =>
+                        deleteOfficer(officer.id)
+                      }
+                      className="flex items-center justify-center gap-1 bg-red-50 text-red-700 py-2.5 rounded-lg text-sm font-medium hover:bg-red-100 transition"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={15} />
                       Delete
                     </button>
 
@@ -882,6 +1075,138 @@ const Officers = () => {
         )}
 
       </div>
+
+      {/* VIEW MODAL */}
+
+      {selectedOfficer && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+
+            <div className="flex items-center justify-between p-5 border-b">
+
+              <div>
+
+                <h2 className="text-xl font-bold text-slate-800">
+                  Officer Details
+                </h2>
+
+                <p className="text-sm text-gray-500 mt-1">
+                  Complete officer information
+                </p>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedOfficer(null)
+                }
+                title="Close"
+                aria-label="Close"
+                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition"
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            <div className="p-5 space-y-4">
+
+              <div className="bg-blue-50 rounded-lg p-4">
+
+                <p className="text-xs text-gray-500">
+                  Officer ID
+                </p>
+
+                <p className="text-lg font-bold text-blue-700 mt-1">
+                  {selectedOfficer.officerId}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Officer Name
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1">
+                  {selectedOfficer.name}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Email Address
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1 break-all">
+                  {selectedOfficer.email}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Phone Number
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1">
+                  {selectedOfficer.phone}
+                </p>
+
+              </div>
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Department
+                </p>
+
+                <span className="inline-block bg-purple-50 text-purple-700 px-3 py-1.5 rounded-full text-sm font-medium mt-1">
+                  {selectedOfficer.department}
+                </span>
+
+              </div>
+
+              <div>
+
+                <p className="text-xs text-gray-400">
+                  Designation
+                </p>
+
+                <p className="font-medium text-slate-800 mt-1">
+                  {selectedOfficer.designation}
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="flex justify-end p-5 border-t">
+
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedOfficer(null)
+                }
+                className="bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-900 transition"
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
   );

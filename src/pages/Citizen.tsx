@@ -5,19 +5,17 @@ import {
   Trash2,
   Users,
   Building2,
-  UserPlus,
   X,
   Eye,
 } from "lucide-react";
 
-type CitizenData = {
-  id: number;
-  citizenId: string;
-  name: string;
-  email: string;
-  phone: string;
-  department: string;
-};
+import {
+  getCitizens,
+  addCitizen,
+  updateCitizen,
+  deleteCitizen as deleteCitizenFromService,
+  type CitizenData,
+} from "../services/api";
 
 const Citizen = () => {
   // =========================
@@ -38,8 +36,11 @@ const Citizen = () => {
   // =========================
   // CITIZENS
   // =========================
+  // Data is loaded from localStorage
 
-  const [citizens, setCitizens] = useState<CitizenData[]>([]);
+  const [citizens, setCitizens] = useState<CitizenData[]>(
+    () => getCitizens()
+  );
 
   // =========================
   // EDIT
@@ -73,57 +74,131 @@ const Citizen = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // =========================
-    // VALIDATION
-    // =========================
-
+    // Required fields
     if (
       !name.trim() ||
       !email.trim() ||
       !phone.trim() ||
       !department
     ) {
-      alert("Please fill all fields");
+      alert("Please fill all fields.");
       return;
     }
 
-    const isEditing = editId !== null;
+    // Name validation
+    if (name.trim().length < 2) {
+      alert("Name must contain at least 2 characters.");
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    // Phone validation
+    const phoneRegex = /^[6-9]\d{9}$/;
+
+    if (!phoneRegex.test(phone.trim())) {
+      alert("Please enter a valid 10-digit Indian phone number.");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = phone.trim();
 
     // =========================
-    // FIND EXISTING CITIZEN
+    // DUPLICATE VALIDATION
     // =========================
+
+    const duplicateCitizen = citizens.find((citizen) => {
+      if (citizen.id === editId) {
+        return false;
+      }
+
+      return (
+        citizen.email.trim().toLowerCase() === normalizedEmail ||
+        citizen.phone.trim() === normalizedPhone
+      );
+    });
+
+    if (duplicateCitizen) {
+      if (
+        duplicateCitizen.email.trim().toLowerCase() ===
+        normalizedEmail
+      ) {
+        alert("A citizen with this email already exists.");
+      } else {
+        alert("A citizen with this phone number already exists.");
+      }
+
+      return;
+    }
+
+    // =========================
+    // EDIT / ADD
+    // =========================
+
+    const isEditing = editId !== null;
 
     const existingCitizen = isEditing
       ? citizens.find((citizen) => citizen.id === editId)
       : undefined;
 
+    if (isEditing && !existingCitizen) {
+      alert("Citizen not found. Please refresh and try again.");
+      resetForm();
+      return;
+    }
+
     // =========================
     // GENERATE CITIZEN ID
     // =========================
 
-    const citizenId = isEditing
-      ? existingCitizen?.citizenId ?? ""
-      : `CIT-${String(citizens.length + 1).padStart(3, "0")}`;
+    let nextCitizenId = "CIT-001";
+
+    if (isEditing) {
+      nextCitizenId = existingCitizen!.citizenId;
+    } else if (citizens.length > 0) {
+      const highestNumber = Math.max(
+        ...citizens.map((citizen) => {
+          const numericPart = Number(
+            citizen.citizenId.replace("CIT-", "")
+          );
+
+          return Number.isNaN(numericPart)
+            ? citizen.id
+            : numericPart;
+        })
+      );
+
+      nextCitizenId = `CIT-${String(
+        highestNumber + 1
+      ).padStart(3, "0")}`;
+    }
 
     // =========================
     // GENERATE NUMERIC ID
     // =========================
-    // Editing असल्यास जुना ID ठेवतो.
-    // New citizen असल्यास existing IDs मधून next ID घेतो.
 
     const newNumericId = isEditing
-      ? editId
+      ? editId!
       : citizens.length > 0
-      ? Math.max(...citizens.map((citizen) => citizen.id)) + 1
+      ? Math.max(
+          ...citizens.map((citizen) => citizen.id)
+        ) + 1
       : 1;
 
     // =========================
-    // NEW CITIZEN OBJECT
+    // CREATE CITIZEN OBJECT
     // =========================
 
     const newCitizen: CitizenData = {
-      id: newNumericId as number,
-      citizenId,
+      id: newNumericId,
+      citizenId: nextCitizenId,
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
@@ -131,58 +206,74 @@ const Citizen = () => {
     };
 
     // =========================
-    // UPDATE CITIZEN
+    // UPDATE
     // =========================
 
     if (isEditing) {
-      setCitizens((prev) =>
-        prev.map((citizen) =>
-          citizen.id === editId ? newCitizen : citizen
-        )
-      );
+      updateCitizen(newCitizen);
+
+      // IMPORTANT:
+      // Read latest data from localStorage
+      // and update React state immediately.
+      const latestCitizens = getCitizens();
+      setCitizens(latestCitizens);
 
       alert("Citizen Updated Successfully!");
     }
 
     // =========================
-    // ADD CITIZEN
+    // ADD
     // =========================
 
     else {
-      setCitizens((prev) => [...prev, newCitizen]);
+      addCitizen(newCitizen);
 
-      alert(`Citizen Added Successfully! ID: ${citizenId}`);
+      // IMPORTANT:
+      // Read latest data after saving
+      // so count and list update immediately.
+      const latestCitizens = getCitizens();
+      setCitizens(latestCitizens);
+
+      alert(
+        `Citizen Added Successfully! ID: ${nextCitizenId}`
+      );
     }
-
-    // =========================
-    // RESET FORM
-    // =========================
 
     resetForm();
   };
 
   // =========================
-  // SEARCH CITIZENS
+  // SEARCH
   // =========================
 
   const filteredCitizens = citizens.filter((citizen) => {
     const searchText = search.toLowerCase().trim();
 
     return (
-      citizen.citizenId.toLowerCase().includes(searchText) ||
-      citizen.name.toLowerCase().includes(searchText) ||
-      citizen.email.toLowerCase().includes(searchText) ||
-      citizen.phone.toLowerCase().includes(searchText) ||
-      citizen.department.toLowerCase().includes(searchText)
+      citizen.citizenId
+        .toLowerCase()
+        .includes(searchText) ||
+      citizen.name
+        .toLowerCase()
+        .includes(searchText) ||
+      citizen.email
+        .toLowerCase()
+        .includes(searchText) ||
+      citizen.phone.includes(searchText) ||
+      citizen.department
+        .toLowerCase()
+        .includes(searchText)
     );
   });
 
   // =========================
-  // VIEW CITIZEN
+  // VIEW
   // =========================
 
   const viewCitizen = (id: number) => {
-    const citizen = citizens.find((item) => item.id === id);
+    const citizen = citizens.find(
+      (item) => item.id === id
+    );
 
     if (!citizen) return;
 
@@ -190,11 +281,13 @@ const Citizen = () => {
   };
 
   // =========================
-  // EDIT CITIZEN
+  // EDIT
   // =========================
 
   const editCitizen = (id: number) => {
-    const citizen = citizens.find((item) => item.id === id);
+    const citizen = citizens.find(
+      (item) => item.id === id
+    );
 
     if (!citizen) return;
 
@@ -211,11 +304,13 @@ const Citizen = () => {
   };
 
   // =========================
-  // DELETE CITIZEN
+  // DELETE
   // =========================
 
   const deleteCitizen = (id: number) => {
-    const citizen = citizens.find((item) => item.id === id);
+    const citizen = citizens.find(
+      (item) => item.id === id
+    );
 
     if (!citizen) return;
 
@@ -225,23 +320,25 @@ const Citizen = () => {
 
     if (!confirmed) return;
 
-    setCitizens((prev) =>
-      prev.filter((item) => item.id !== id)
-    );
+    deleteCitizenFromService(id);
 
-    // Deleted citizen edit होत असेल
+    // Update list and count immediately
+    const latestCitizens = getCitizens();
+    setCitizens(latestCitizens);
+
     if (editId === id) {
       resetForm();
     }
 
-    // Deleted citizen modal मध्ये असेल
     if (selectedCitizen?.id === id) {
       setSelectedCitizen(null);
     }
+
+    alert("Citizen deleted successfully.");
   };
 
   // =========================
-  // KPI CALCULATIONS
+  // KPI
   // =========================
 
   const totalCitizens = citizens.length;
@@ -257,9 +354,7 @@ const Citizen = () => {
   return (
     <div className="space-y-6 w-full">
 
-      {/* =====================================
-          PAGE HEADER
-      ===================================== */}
+      {/* PAGE HEADER */}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 
@@ -283,13 +378,11 @@ const Citizen = () => {
 
       </div>
 
-      {/* =====================================
-          KPI CARDS
-      ===================================== */}
+      {/* KPI CARDS */}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* Total Citizens */}
+        {/* TOTAL CITIZENS */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
@@ -313,7 +406,7 @@ const Citizen = () => {
 
         </div>
 
-        {/* Departments */}
+        {/* DEPARTMENTS */}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
 
@@ -337,35 +430,9 @@ const Citizen = () => {
 
         </div>
 
-        {/* Registered */}
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-              <p className="text-sm text-gray-500">
-                Registered
-              </p>
-
-              <h2 className="text-2xl font-bold text-slate-800 mt-1">
-                {citizens.length}
-              </h2>
-            </div>
-
-            <div className="bg-green-100 text-green-600 p-3 rounded-lg">
-              <UserPlus size={23} />
-            </div>
-
-          </div>
-
-        </div>
-
       </div>
 
-      {/* =====================================
-          ADD / EDIT CITIZEN
-      ===================================== */}
+      {/* ADD / EDIT */}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
 
@@ -387,8 +454,6 @@ const Citizen = () => {
 
           </div>
 
-          {/* Cancel Edit */}
-
           {editId !== null && (
             <button
               type="button"
@@ -402,15 +467,13 @@ const Citizen = () => {
 
         </div>
 
-        {/* =====================================
-            FORM
-        ===================================== */}
+        {/* FORM */}
 
         <form onSubmit={handleSubmit}>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-            {/* Name */}
+            {/* NAME */}
 
             <div>
 
@@ -422,13 +485,15 @@ const Citizen = () => {
                 type="text"
                 placeholder="Enter citizen name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) =>
+                  setName(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
 
             </div>
 
-            {/* Email */}
+            {/* EMAIL */}
 
             <div>
 
@@ -440,13 +505,15 @@ const Citizen = () => {
                 type="email"
                 placeholder="citizen@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
 
             </div>
 
-            {/* Phone */}
+            {/* PHONE */}
 
             <div>
 
@@ -456,15 +523,17 @@ const Citizen = () => {
 
               <input
                 type="tel"
-                placeholder="Enter phone number"
+                placeholder="Enter 10-digit phone number"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) =>
+                  setPhone(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
 
             </div>
 
-            {/* Department */}
+            {/* DEPARTMENT */}
 
             <div>
 
@@ -474,7 +543,9 @@ const Citizen = () => {
 
               <select
                 value={department}
-                onChange={(e) => setDepartment(e.target.value)}
+                onChange={(e) =>
+                  setDepartment(e.target.value)
+                }
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
 
@@ -520,7 +591,7 @@ const Citizen = () => {
 
           </div>
 
-          {/* Buttons */}
+          {/* BUTTONS */}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-5">
 
@@ -536,7 +607,6 @@ const Citizen = () => {
                 </>
               ) : (
                 <>
-                  <UserPlus size={18} />
                   Save Citizen
                 </>
               )}
@@ -559,13 +629,9 @@ const Citizen = () => {
 
       </div>
 
-      {/* =====================================
-          CITIZENS LIST
-      ===================================== */}
+      {/* CITIZENS LIST */}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
-
-        {/* Header */}
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
 
@@ -581,7 +647,7 @@ const Citizen = () => {
 
           </div>
 
-          {/* Search */}
+          {/* SEARCH */}
 
           <div className="relative w-full lg:w-80">
 
@@ -594,7 +660,9 @@ const Citizen = () => {
               type="text"
               placeholder="Search citizens..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
               className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
 
@@ -602,9 +670,7 @@ const Citizen = () => {
 
         </div>
 
-        {/* =====================================
-            EMPTY STATE
-        ===================================== */}
+        {/* EMPTY STATE */}
 
         {filteredCitizens.length === 0 ? (
 
@@ -628,10 +694,6 @@ const Citizen = () => {
           </div>
 
         ) : (
-
-          /* =====================================
-             TABLE
-          ===================================== */
 
           <div className="overflow-x-auto">
 
@@ -678,8 +740,6 @@ const Citizen = () => {
                     className="hover:bg-slate-50 transition"
                   >
 
-                    {/* Citizen ID */}
-
                     <td className="p-3 border-b">
 
                       <span className="inline-block bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-sm font-medium">
@@ -688,25 +748,17 @@ const Citizen = () => {
 
                     </td>
 
-                    {/* Name */}
-
                     <td className="p-3 border-b font-medium text-slate-800">
                       {citizen.name}
                     </td>
-
-                    {/* Email */}
 
                     <td className="p-3 border-b text-sm text-gray-600">
                       {citizen.email}
                     </td>
 
-                    {/* Phone */}
-
                     <td className="p-3 border-b text-sm text-gray-600">
                       {citizen.phone}
                     </td>
-
-                    {/* Department */}
 
                     <td className="p-3 border-b">
 
@@ -716,8 +768,6 @@ const Citizen = () => {
 
                     </td>
 
-                    {/* Actions */}
-
                     <td className="p-3 border-b">
 
                       <div className="flex items-center justify-center gap-2">
@@ -726,7 +776,9 @@ const Citizen = () => {
 
                         <button
                           type="button"
-                          onClick={() => viewCitizen(citizen.id)}
+                          onClick={() =>
+                            viewCitizen(citizen.id)
+                          }
                           title="View Citizen"
                           aria-label="View Citizen"
                           className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
@@ -738,7 +790,9 @@ const Citizen = () => {
 
                         <button
                           type="button"
-                          onClick={() => editCitizen(citizen.id)}
+                          onClick={() =>
+                            editCitizen(citizen.id)
+                          }
                           title="Edit Citizen"
                           aria-label="Edit Citizen"
                           className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition"
@@ -750,7 +804,9 @@ const Citizen = () => {
 
                         <button
                           type="button"
-                          onClick={() => deleteCitizen(citizen.id)}
+                          onClick={() =>
+                            deleteCitizen(citizen.id)
+                          }
                           title="Delete Citizen"
                           aria-label="Delete Citizen"
                           className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
@@ -776,9 +832,7 @@ const Citizen = () => {
 
       </div>
 
-      {/* =====================================
-          VIEW CITIZEN MODAL
-      ===================================== */}
+      {/* VIEW MODAL */}
 
       {selectedCitizen && (
 
@@ -786,7 +840,7 @@ const Citizen = () => {
 
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
 
-            {/* Modal Header */}
+            {/* MODAL HEADER */}
 
             <div className="flex items-center justify-between p-5 border-b">
 
@@ -804,7 +858,9 @@ const Citizen = () => {
 
               <button
                 type="button"
-                onClick={() => setSelectedCitizen(null)}
+                onClick={() =>
+                  setSelectedCitizen(null)
+                }
                 title="Close"
                 aria-label="Close"
                 className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition"
@@ -814,11 +870,9 @@ const Citizen = () => {
 
             </div>
 
-            {/* Modal Body */}
+            {/* MODAL BODY */}
 
             <div className="p-5 space-y-4">
-
-              {/* Citizen ID */}
 
               <div className="bg-blue-50 rounded-lg p-4">
 
@@ -832,8 +886,6 @@ const Citizen = () => {
 
               </div>
 
-              {/* Name */}
-
               <div>
 
                 <p className="text-xs text-gray-400">
@@ -845,8 +897,6 @@ const Citizen = () => {
                 </p>
 
               </div>
-
-              {/* Email */}
 
               <div>
 
@@ -860,8 +910,6 @@ const Citizen = () => {
 
               </div>
 
-              {/* Phone */}
-
               <div>
 
                 <p className="text-xs text-gray-400">
@@ -873,8 +921,6 @@ const Citizen = () => {
                 </p>
 
               </div>
-
-              {/* Department */}
 
               <div>
 
@@ -890,13 +936,15 @@ const Citizen = () => {
 
             </div>
 
-            {/* Modal Footer */}
+            {/* MODAL FOOTER */}
 
             <div className="flex justify-end p-5 border-t">
 
               <button
                 type="button"
-                onClick={() => setSelectedCitizen(null)}
+                onClick={() =>
+                  setSelectedCitizen(null)
+                }
                 className="bg-slate-800 text-white px-5 py-2.5 rounded-lg hover:bg-slate-900 transition"
               >
                 Close

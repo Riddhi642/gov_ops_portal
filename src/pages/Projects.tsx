@@ -6,14 +6,13 @@ import {
   FolderKanban,
   X,
 } from "lucide-react";
-
-type ProjectData = {
-  id: number;
-  projectName: string;
-  department: string;
-  budget: string;
-  status: string;
-};
+import {
+  getProjects,
+  addProject,
+  updateProject,
+  deleteProject as deleteProjectFromService,
+  type ProjectData,
+} from "../services/api";
 
 const Projects = () => {
   // =========================
@@ -35,13 +34,15 @@ const Projects = () => {
   // PROJECTS
   // =========================
 
-  const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [projects, setProjects] =
+    useState<ProjectData[]>(() => getProjects());
 
   // =========================
   // EDIT
   // =========================
 
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] =
+    useState<number | null>(null);
 
   // =========================
   // RESET FORM
@@ -59,7 +60,9 @@ const Projects = () => {
   // SUBMIT FORM
   // =========================
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
 
     if (
@@ -83,15 +86,24 @@ const Projects = () => {
     };
 
     if (isEditing) {
+      updateProject(newProject);
+
       setProjects((prev) =>
         prev.map((project) =>
-          project.id === editId ? newProject : project
+          project.id === editId
+            ? newProject
+            : project
         )
       );
 
       alert("Project Updated Successfully!");
     } else {
-      setProjects((prev) => [...prev, newProject]);
+      addProject(newProject);
+
+      setProjects((prev) => [
+        ...prev,
+        newProject,
+      ]);
 
       alert("Project Added Successfully!");
     }
@@ -103,21 +115,23 @@ const Projects = () => {
   // SEARCH PROJECTS
   // =========================
 
-  const filteredProjects = projects.filter((project) => {
-    const searchText = search.toLowerCase();
+  const filteredProjects =
+    projects.filter((project) => {
+      const searchText =
+        search.toLowerCase();
 
-    return (
-      project.projectName
-        .toLowerCase()
-        .includes(searchText) ||
-      project.department
-        .toLowerCase()
-        .includes(searchText) ||
-      project.status
-        .toLowerCase()
-        .includes(searchText)
-    );
-  });
+      return (
+        project.projectName
+          .toLowerCase()
+          .includes(searchText) ||
+        project.department
+          .toLowerCase()
+          .includes(searchText) ||
+        project.status
+          .toLowerCase()
+          .includes(searchText)
+      );
+    });
 
   // =========================
   // EDIT PROJECT
@@ -159,8 +173,12 @@ const Projects = () => {
 
     if (!confirmed) return;
 
+    deleteProjectFromService(id);
+
     setProjects((prev) =>
-      prev.filter((project) => project.id !== id)
+      prev.filter(
+        (project) => project.id !== id
+      )
     );
 
     if (editId === id) {
@@ -227,6 +245,7 @@ const Projects = () => {
               Cancel
             </button>
           )}
+
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -385,8 +404,6 @@ const Projects = () => {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
 
-        {/* Header */}
-
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
 
           <div>
@@ -422,9 +439,7 @@ const Projects = () => {
 
         </div>
 
-        {/* =========================
-            EMPTY STATE
-        ========================= */}
+        {/* EMPTY STATE */}
 
         {filteredProjects.length === 0 ? (
 
@@ -449,9 +464,7 @@ const Projects = () => {
 
         ) : (
 
-          /* =========================
-             PROJECT TABLE
-          ========================= */
+          /* PROJECT TABLE */
 
           <div className="overflow-x-auto">
 
@@ -487,80 +500,84 @@ const Projects = () => {
 
               <tbody>
 
-                {filteredProjects.map((project) => (
+                {filteredProjects.map(
+                  (project) => (
 
-                  <tr
-                    key={project.id}
-                    className="hover:bg-slate-50 transition"
-                  >
+                    <tr
+                      key={project.id}
+                      className="hover:bg-slate-50 transition"
+                    >
 
-                    <td className="p-3 border-b font-medium text-slate-800">
-                      {project.projectName}
-                    </td>
+                      <td className="p-3 border-b font-medium text-slate-800">
+                        {project.projectName}
+                      </td>
 
-                    <td className="p-3 border-b">
-                      <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-sm">
-                        {project.department}
-                      </span>
-                    </td>
+                      <td className="p-3 border-b">
 
-                    <td className="p-3 border-b">
-                      ₹ {project.budget}
-                    </td>
+                        <span className="bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full text-sm">
+                          {project.department}
+                        </span>
 
-                    <td className="p-3 border-b">
+                      </td>
 
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-sm ${
-                          project.status === "Active"
-                            ? "bg-green-50 text-green-700"
-                            : project.status === "Completed"
-                            ? "bg-blue-50 text-blue-700"
-                            : "bg-yellow-50 text-yellow-700"
-                        }`}
-                      >
-                        {project.status}
-                      </span>
+                      <td className="p-3 border-b">
+                        ₹ {project.budget}
+                      </td>
 
-                    </td>
+                      <td className="p-3 border-b">
 
-                    <td className="p-3 border-b">
-
-                      <div className="flex items-center justify-center gap-2">
-
-                        {/* Edit */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            editProject(project.id)
-                          }
-                          title="Edit Project"
-                          className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-sm ${
+                            project.status === "Active"
+                              ? "bg-green-50 text-green-700"
+                              : project.status === "Completed"
+                              ? "bg-blue-50 text-blue-700"
+                              : "bg-yellow-50 text-yellow-700"
+                          }`}
                         >
-                          <Pencil size={17} />
-                        </button>
+                          {project.status}
+                        </span>
 
-                        {/* Delete */}
+                      </td>
 
-                        <button
-                          type="button"
-                          onClick={() =>
-                            deleteProject(project.id)
-                          }
-                          title="Delete Project"
-                          className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                        >
-                          <Trash2 size={17} />
-                        </button>
+                      <td className="p-3 border-b">
 
-                      </div>
+                        <div className="flex items-center justify-center gap-2">
 
-                    </td>
+                          {/* Edit */}
 
-                  </tr>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              editProject(project.id)
+                            }
+                            title="Edit Project"
+                            className="p-2 rounded-lg bg-yellow-50 text-yellow-600 hover:bg-yellow-100"
+                          >
+                            <Pencil size={17} />
+                          </button>
 
-                ))}
+                          {/* Delete */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              deleteProject(project.id)
+                            }
+                            title="Delete Project"
+                            className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+
+                  )
+                )}
 
               </tbody>
 
