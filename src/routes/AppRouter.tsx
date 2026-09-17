@@ -11,7 +11,6 @@ import Profile from "../pages/Profile";
 import Settings from "../pages/Settings";
 import RequestDetails from "../pages/RequestDetails";
 
-
 const AppRouter = () => {
   return (
     <BrowserRouter>
